@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import jsPDF from 'jspdf';
 import { Button } from '@/components/ui/button';
-import { Printer } from 'lucide-react';
+import { Download, Printer } from 'lucide-react';
 import { Equipment } from '@/lib/types';
 
 interface QrPrintLabelProps {
@@ -25,9 +25,9 @@ export function QrPrintLabel({ equipment }: QrPrintLabelProps) {
     }
   }, [qrValue]);
 
-  const handlePrint = () => {
+  const buildPdf = () => {
     const canvas = canvasRef.current;
-    if (!canvas || !qrGenerated) return;
+    if (!canvas || !qrGenerated) return null;
 
     const qrDataUrl = canvas.toDataURL('image/png');
     const pageWidth = 100;
@@ -52,6 +52,13 @@ export function QrPrintLabel({ equipment }: QrPrintLabelProps) {
     doc.setTextColor(150);
     doc.text('Escanea el código QR para ver detalles', pageWidth / 2, 112, { align: 'center' });
 
+    return doc;
+  };
+
+  const handlePrint = () => {
+    const doc = buildPdf();
+    if (!doc) return;
+
     const blob = doc.output('blob');
     const blobUrl = URL.createObjectURL(blob);
 
@@ -67,6 +74,13 @@ export function QrPrintLabel({ equipment }: QrPrintLabelProps) {
     document.body.removeChild(link);
 
     setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+  };
+
+  const handleDownload = () => {
+    const doc = buildPdf();
+    if (!doc) return;
+
+    doc.save(`QR-${equipment.serial_number}.pdf`);
   };
 
   return (
@@ -98,10 +112,16 @@ export function QrPrintLabel({ equipment }: QrPrintLabelProps) {
         </div>
       </div>
 
-      <Button onClick={handlePrint} disabled={!qrGenerated} className="w-full gap-2" variant="outline">
-        <Printer className="w-4 h-4" />
-        Imprimir QR
-      </Button>
+      <div className="flex gap-2">
+        <Button onClick={handlePrint} disabled={!qrGenerated} className="flex-1 gap-2" variant="outline">
+          <Printer className="w-4 h-4" />
+          Imprimir QR
+        </Button>
+        <Button onClick={handleDownload} disabled={!qrGenerated} className="flex-1 gap-2" variant="outline">
+          <Download className="w-4 h-4" />
+          Descargar PDF
+        </Button>
+      </div>
     </div>
   );
 }
