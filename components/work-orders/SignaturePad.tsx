@@ -19,8 +19,10 @@ export function SignaturePad({ onSignatureSaved }: SignaturePadProps) {
 
     setIsDrawing(true);
     const rect = canvas.getBoundingClientRect();
-    const x = ('touches' in e ? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = ('touches' in e ? e.touches[0].clientY : e.clientY) - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (('touches' in e ? e.touches[0].clientX : e.clientX) - rect.left) * scaleX;
+    const y = (('touches' in e ? e.touches[0].clientY : e.clientY) - rect.top) * scaleY;
 
     const ctx = canvas.getContext('2d');
     if (ctx) {
@@ -36,8 +38,10 @@ export function SignaturePad({ onSignatureSaved }: SignaturePadProps) {
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = ('touches' in e ? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = ('touches' in e ? e.touches[0].clientY : e.clientY) - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (('touches' in e ? e.touches[0].clientX : e.clientX) - rect.left) * scaleX;
+    const y = (('touches' in e ? e.touches[0].clientY : e.clientY) - rect.top) * scaleY;
 
     const ctx = canvas.getContext('2d');
     if (ctx) {

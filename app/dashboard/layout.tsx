@@ -52,7 +52,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="flex h-dvh bg-slate-50">
       {/* Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 flex flex-col h-full">
@@ -107,7 +107,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto min-h-0">
         {/* Header */}
         <div className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 py-4 lg:px-6 flex items-center justify-between">
           <button

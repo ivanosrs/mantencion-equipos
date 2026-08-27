@@ -3,6 +3,24 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5QrcodeScannerStrings } from 'html5-qrcode/esm/strings';
+
+Html5QrcodeScannerStrings.cameraPermissionTitle = () => 'Solicitar permisos de cámara';
+Html5QrcodeScannerStrings.cameraPermissionRequesting = () => 'Solicitando permisos de cámara...';
+Html5QrcodeScannerStrings.noCameraFound = () => 'No se encontró ninguna cámara';
+Html5QrcodeScannerStrings.scanButtonStopScanningText = () => 'Detener escaneo';
+Html5QrcodeScannerStrings.scanButtonStartScanningText = () => 'Iniciar escaneo';
+Html5QrcodeScannerStrings.scanButtonScanningStarting = () => 'Iniciando cámara...';
+Html5QrcodeScannerStrings.textIfCameraScanSelected = () => 'Escanear un archivo de imagen';
+Html5QrcodeScannerStrings.textIfFileScanSelected = () => 'Escanear con la cámara';
+Html5QrcodeScannerStrings.selectCamera = () => 'Seleccionar cámara';
+Html5QrcodeScannerStrings.fileSelectionChooseImage = () => 'Elegir imagen';
+Html5QrcodeScannerStrings.fileSelectionChooseAnother = () => 'Elegir otra';
+Html5QrcodeScannerStrings.fileSelectionNoImageSelected = () => 'Ninguna imagen elegida';
+Html5QrcodeScannerStrings.dragAndDropMessage = () => 'O arrastra una imagen para escanear';
+Html5QrcodeScannerStrings.zoom = () => 'zoom';
+Html5QrcodeScannerStrings.torchOnButton = () => 'Encender linterna';
+Html5QrcodeScannerStrings.torchOffButton = () => 'Apagar linterna';
 
 export function QrScanner() {
   const scannerRef = useRef<HTMLDivElement>(null);
@@ -44,6 +62,12 @@ export function QrScanner() {
       if (scanning) {
         scanner.clear().catch(() => {});
       }
+
+      // Defensive fallback: html5-qrcode's clear() can silently no-op if the
+      // camera was still initializing, leaving the MediaStream active.
+      const video = scannerRef.current?.querySelector('video');
+      const stream = video?.srcObject as MediaStream | null;
+      stream?.getTracks().forEach((track) => track.stop());
     };
   }, [scanning, router]);
 

@@ -53,6 +53,7 @@ export default function NewWorkOrderPage() {
   const [error, setError] = useState('');
   const [signatureBlob, setSignatureBlob] = useState<Blob | null>(null);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [generatingOtNumber, setGeneratingOtNumber] = useState(false);
 
   const [formData, setFormData] = useState({
     ot_number: '',
@@ -111,6 +112,25 @@ export default function NewWorkOrderPage() {
 
     loadData();
   }, [equipmentId, router, supabase]);
+
+  async function handleGenerateOtNumber() {
+    setGeneratingOtNumber(true);
+    setError('');
+
+    try {
+      const { data, error: rpcError } = await supabase.rpc('next_ot_number');
+
+      if (rpcError || !data) {
+        setError('No se pudo generar el número de OT automáticamente');
+      } else {
+        setFormData((prev) => ({ ...prev, ot_number: data }));
+      }
+    } catch (err) {
+      setError('No se pudo generar el número de OT automáticamente');
+    } finally {
+      setGeneratingOtNumber(false);
+    }
+  }
 
   function toggleAction(action: string) {
     setFormData((prev) => ({
@@ -287,12 +307,22 @@ export default function NewWorkOrderPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Número OT *</Label>
-                <Input
-                  placeholder="Ej: 00554"
-                  value={formData.ot_number}
-                  onChange={(e) => setFormData({ ...formData, ot_number: e.target.value })}
-                  required
-                />
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Ej: 00554"
+                    value={formData.ot_number}
+                    onChange={(e) => setFormData({ ...formData, ot_number: e.target.value })}
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={generatingOtNumber}
+                    onClick={handleGenerateOtNumber}
+                  >
+                    {generatingOtNumber ? '...' : 'Generar automático'}
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-2">

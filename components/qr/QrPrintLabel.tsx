@@ -44,7 +44,7 @@ export function QrPrintLabel({ equipment }: QrPrintLabelProps) {
       <div
         ref={printRef}
         className="bg-white p-8 rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-6"
-        style={{ width: '400px', margin: '0 auto' }}
+        style={{ maxWidth: '400px', width: '100%', margin: '0 auto' }}
       >
         {/* Header */}
         <div className="text-center">
@@ -53,11 +53,12 @@ export function QrPrintLabel({ equipment }: QrPrintLabelProps) {
         </div>
 
         {/* QR Code */}
-        {qrGenerated && (
-          <canvas
-            ref={canvasRef}
-            style={{ border: 'none', margin: '20px' }}
-          />
+        <canvas
+          ref={canvasRef}
+          style={{ border: 'none', margin: '20px', display: qrGenerated ? 'block' : 'none' }}
+        />
+        {!qrGenerated && (
+          <p className="text-sm text-slate-400">Generando código QR...</p>
         )}
 
         {/* Equipment Info */}
