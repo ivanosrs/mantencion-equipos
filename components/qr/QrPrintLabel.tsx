@@ -52,8 +52,21 @@ export function QrPrintLabel({ equipment }: QrPrintLabelProps) {
     doc.setTextColor(150);
     doc.text('Escanea el código QR para ver detalles', pageWidth / 2, 112, { align: 'center' });
 
-    const blobUrl = doc.output('bloburl');
-    window.open(blobUrl, '_blank');
+    const blob = doc.output('blob');
+    const blobUrl = URL.createObjectURL(blob);
+
+    // Desktop popup blockers often silently block window.open() even from
+    // a click handler. Simulating an anchor click is treated as a real
+    // navigation instead of a popup, so it isn't blocked on any platform.
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
   };
 
   return (
