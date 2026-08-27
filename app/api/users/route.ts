@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 const VALID_ROLES = ['admin', 'technician'] as const;
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify requesting user is admin
-    const userClient = await createServerClient();
+    const userClient = await createClient();
     const { data: { user: requestingUser } } = await userClient.auth.getUser();
 
     if (!requestingUser) {
