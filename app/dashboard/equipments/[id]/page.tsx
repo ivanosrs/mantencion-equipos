@@ -75,6 +75,17 @@ export default function EquipmentDetailPage() {
     loadData();
   }, [id, router, supabase]);
 
+  async function handleDownload(bucket: 'attachments' | 'signatures', path: string) {
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 60);
+
+    if (error || !data) {
+      alert('No se pudo generar el enlace de descarga');
+      return;
+    }
+
+    window.open(data.signedUrl, '_blank');
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'operational':
@@ -202,15 +213,28 @@ export default function EquipmentDetailPage() {
                         <Badge variant="secondary">{wo.service_type}</Badge>
                       </div>
                       <p className="text-sm text-slate-700 mb-2">{wo.problem_description}</p>
-                      {wo.attachment_path && (
-                        <a
-                          href="#"
-                          className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
-                        >
-                          <FileDown className="w-4 h-4" />
-                          Descargar adjunto
-                        </a>
-                      )}
+                      <div className="flex flex-wrap gap-4">
+                        {wo.attachment_path && (
+                          <button
+                            type="button"
+                            onClick={() => handleDownload('attachments', wo.attachment_path!)}
+                            className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+                          >
+                            <FileDown className="w-4 h-4" />
+                            Descargar adjunto
+                          </button>
+                        )}
+                        {wo.client_signature_path && (
+                          <button
+                            type="button"
+                            onClick={() => handleDownload('signatures', wo.client_signature_path!)}
+                            className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+                          >
+                            <FileDown className="w-4 h-4" />
+                            Ver firma cliente
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
