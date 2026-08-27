@@ -142,7 +142,14 @@ CREATE POLICY "Authenticated users can read work order parts"
 
 CREATE POLICY "Authenticated users can insert work order parts"
   ON work_order_parts FOR INSERT
-  WITH CHECK (auth.role() = 'authenticated');
+  WITH CHECK (
+    auth.role() = 'authenticated'
+    AND EXISTS (
+      SELECT 1 FROM work_orders
+      WHERE id = work_order_id
+      AND technician_id = auth.uid()
+    )
+  );
 
 CREATE POLICY "Admins can delete work order parts"
   ON work_order_parts FOR DELETE
