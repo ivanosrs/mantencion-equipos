@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Equipment, WorkOrder } from '@/lib/types';
-import { ArrowLeft, FileDown, Plus, Printer } from 'lucide-react';
+import { ArrowLeft, FileDown, Plus } from 'lucide-react';
 
 const QrPrintLabel = dynamic(() => import('@/components/qr/QrPrintLabel').then(mod => ({ default: mod.QrPrintLabel })), {
   ssr: false,
@@ -24,7 +24,6 @@ export default function EquipmentDetailPage() {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [showQrPrint, setShowQrPrint] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -250,18 +249,7 @@ export default function EquipmentDetailPage() {
               <CardTitle className="text-lg">Código QR</CardTitle>
             </CardHeader>
             <CardContent>
-              {showQrPrint ? (
-                <QrPrintLabel equipment={equipment} />
-              ) : (
-                <Button
-                  onClick={() => setShowQrPrint(true)}
-                  className="w-full gap-2"
-                  variant="outline"
-                >
-                  <Printer className="w-4 h-4" />
-                  Imprimir QR
-                </Button>
-              )}
+              <QrPrintLabel equipment={equipment} />
             </CardContent>
           </Card>
         </div>
