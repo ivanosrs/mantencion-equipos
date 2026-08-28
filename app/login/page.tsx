@@ -39,7 +39,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-12">
       <Card className="w-full max-w-md">
-        <CardHeader>
+        <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <Image src="/logo.png" alt="Grupo MJ Lab" width={160} height={80} priority className="h-auto w-40" />
           </div>
