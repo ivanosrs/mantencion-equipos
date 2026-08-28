@@ -47,6 +47,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/login');
   }
 
+  useEffect(() => {
+    const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const logoutFromInactivity = () => {
+      handleLogout();
+    };
+
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(logoutFromInactivity, INACTIVITY_TIMEOUT_MS);
+    };
+
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+    activityEvents.forEach((event) => window.addEventListener(event, resetTimer));
+    resetTimer();
+
+    return () => {
+      clearTimeout(timer);
+      activityEvents.forEach((event) => window.removeEventListener(event, resetTimer));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
   }
