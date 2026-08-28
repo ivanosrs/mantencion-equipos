@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { signIn } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
+          <div className="flex justify-center mb-4">
+            <Image src="/logo.png" alt="Grupo MJ Lab" width={160} height={80} priority className="h-auto w-40" />
+          </div>
           <CardTitle>Mantencion Equipos</CardTitle>
           <CardDescription>Inicia sesión para acceder al sistema</CardDescription>
         </CardHeader>
