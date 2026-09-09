@@ -43,7 +43,7 @@ export default function LoginPage() {
           <div className="flex justify-center mb-4">
             <Image src="/logo.png" alt="Grupo MJ Lab" width={160} height={80} priority className="h-auto w-40" />
           </div>
-          <CardTitle>Mantencion Equipos</CardTitle>
+          <CardTitle>Mantención Equipos</CardTitle>
           <CardDescription>Inicia sesión para acceder al sistema</CardDescription>
         </CardHeader>
         <CardContent>
