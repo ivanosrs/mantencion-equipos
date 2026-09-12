@@ -217,7 +217,7 @@ export default function EquipmentDetailPage() {
                           <button
                             type="button"
                             onClick={() => handleDownload('attachments', wo.attachment_path!)}
-                            className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+                            className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1 cursor-pointer"
                           >
                             <FileDown className="w-4 h-4" />
                             Descargar adjunto
@@ -227,7 +227,7 @@ export default function EquipmentDetailPage() {
                           <button
                             type="button"
                             onClick={() => handleDownload('signatures', wo.client_signature_path!)}
-                            className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+                            className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1 cursor-pointer"
                           >
                             <FileDown className="w-4 h-4" />
                             Ver firma cliente

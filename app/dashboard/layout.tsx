@@ -168,7 +168,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 py-4 lg:px-6 flex items-center justify-between">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden p-2 hover:bg-slate-100 rounded-lg"
+            className="lg:hidden p-2 hover:bg-slate-100 rounded-lg cursor-pointer"
           >
             <Menu className="w-6 h-6" />
           </button>
