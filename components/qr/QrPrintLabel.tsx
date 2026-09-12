@@ -84,7 +84,7 @@ export function QrPrintLabel({ equipment }: QrPrintLabelProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <div
         className="bg-white p-8 rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-6"
         style={{ maxWidth: '400px', width: '100%', margin: '0 auto' }}
@@ -113,11 +113,11 @@ export function QrPrintLabel({ equipment }: QrPrintLabelProps) {
       </div>
 
       <div className="flex gap-2">
-        <Button onClick={handlePrint} disabled={!qrGenerated} className="flex-1 gap-2" variant="outline">
+        <Button onClick={handlePrint} disabled={!qrGenerated} className="flex-1 gap-2 mt-3" variant="outline">
           <Printer className="w-4 h-4" />
           Imprimir QR
         </Button>
-        <Button onClick={handleDownload} disabled={!qrGenerated} className="flex-1 gap-2" variant="outline">
+        <Button onClick={handleDownload} disabled={!qrGenerated} className="flex-1 gap-2 mt-3" variant="outline">
           <Download className="w-4 h-4" />
           Descargar PDF
         </Button>
