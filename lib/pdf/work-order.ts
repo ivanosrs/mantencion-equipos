@@ -11,6 +11,8 @@ const SECTION_BAR = 8;
 const LABEL_WIDTH = 44;
 const COL_GAP = 4;
 const BOX = 4;
+const ITEMS_PER_ROW = 2;
+const ROW_HEIGHT = 7;
 
 type Doc = import('jspdf').jsPDF;
 type AutoTableFn = (doc: Doc, options: Record<string, unknown>) => void;
@@ -77,7 +79,7 @@ function estimateSectionHeight(section: OtSection, hasSignature: boolean): numbe
   const header = SECTION_BAR + 4;
 
   if (section.kind === 'fields') return header + LINE * 2;
-  if (section.kind === 'checklist') return header + LINE + LINE * Math.ceil(section.items.length / 2) + 6;
+  if (section.kind === 'checklist') return header + LINE + ROW_HEIGHT * Math.ceil(section.items.length / ITEMS_PER_ROW) + 6;
   if (section.kind === 'parts') return section.parts.length === 0 ? header + LINE + 6 : header + 40;
   if (section.kind === 'conformity') {
     return header + LINE * 2 + LINE * 2 + (hasSignature ? 60 : LINE * 2);
@@ -158,17 +160,27 @@ async function renderSection(
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(9);
 
-    section.items.forEach((item, index) => {
-      if (index % 2 === 0) {
-        y = ensureSpace(y, LINE * 1.6);
+    // El checklist se arma por filas de ITEMS_PER_ROW columnas. Hay que
+    // avanzar `y` al cerrar cada fila: si no, todas las filas se dibujan
+    // superpuestas en la misma coordenada.
+    let index = 0;
+
+    while (index < section.items.length) {
+      y = ensureSpace(y, ROW_HEIGHT);
+
+      for (let column = 0; column < ITEMS_PER_ROW && index + column < section.items.length; column += 1) {
+        const item = section.items[index + column];
+        const x = MARGIN + column * colWidth;
+
+        drawCheckbox(doc, x, y, item.checked);
+        doc.text(item.label, x + BOX + 2, y);
       }
 
-      const x = MARGIN + Math.floor(index / 2) * colWidth;
-      drawCheckbox(doc, x, y, item.checked);
-      doc.text(item.label, x + BOX + 2, y);
-    });
+      y += ROW_HEIGHT;
+      index += ITEMS_PER_ROW;
+    }
 
-    y += LINE * Math.ceil(section.items.length / 2) + 6;
+    y += 6;
   }
 
   if (section.kind === 'parts') {

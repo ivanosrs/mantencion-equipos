@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Equipment, WorkOrder, WorkOrderPart } from '@/lib/types';
-import { buildOtDocument } from '@/lib/ot-document';
+import { buildOtDocument, serviceTypeLabel } from '@/lib/ot-document';
 import { downloadWorkOrderPdf } from '@/lib/pdf/work-order';
 import { ArrowLeft, Eye, FileDown, FileText, Plus } from 'lucide-react';
 
@@ -237,7 +237,7 @@ export default function EquipmentDetailPage() {
                             {new Date(wo.intervention_date).toLocaleDateString('es-CL')}
                           </p>
                         </div>
-                        <Badge variant="secondary">{wo.service_type}</Badge>
+                        <Badge variant="secondary">{serviceTypeLabel(wo.service_type)}</Badge>
                       </div>
                       <p className="text-sm text-slate-700 mb-2">{wo.problem_description}</p>
                       <div className="flex flex-wrap gap-4">
