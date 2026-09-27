@@ -245,10 +245,12 @@ export default function UsersPage() {
                     <Input
                       id="email"
                       type="email"
+                      autoComplete="email"
                       placeholder="usuario@example.com"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      disabled={Boolean(formData.id)}
+                      readOnly={Boolean(formData.id)}
+                      className={formData.id ? 'cursor-default bg-slate-50' : undefined}
                       required
                     />
                     {formData.id && (
@@ -262,6 +264,7 @@ export default function UsersPage() {
                     <Label htmlFor="full_name">Nombre Completo *</Label>
                     <Input
                       id="full_name"
+                      autoComplete="name"
                       placeholder="Nombre del usuario"
                       value={formData.full_name}
                       onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
@@ -274,6 +277,7 @@ export default function UsersPage() {
                     <Input
                       id="phone"
                       type="tel"
+                      autoComplete="tel"
                       placeholder="+56 9 1234 5678"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -303,6 +307,7 @@ export default function UsersPage() {
                       <Input
                         id="password"
                         type={showPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
                         placeholder={
                           formData.id
                             ? 'Dejar vacío para no cambiarla'
