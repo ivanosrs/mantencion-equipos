@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -49,9 +49,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         const { data: profile } = await supabase
           .from('profiles')
-          .select('full_name, role')
+          .select('full_name, role, is_active')
           .eq('id', user.id)
           .single();
+
+        // Baja logica: cerrar la sesion y expulsar al dashboard.
+        if (profile?.is_active === false) {
+          await supabase.auth.signOut();
+          router.push('/login?error=inactivo');
+          return;
+        }
 
         setUserInfo({
           email: user.email || '',
@@ -59,7 +66,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           role: profile?.role === 'admin' ? 'admin' : 'technician',
         });
         setLoading(false);
-      } catch (error) {
+      } catch {
         router.push('/login');
       }
     }
@@ -67,13 +74,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     checkAuth();
   }, [router, supabase]);
 
-  async function handleLogout() {
+  const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
     router.push('/login');
-  }
+  }, [router, supabase]);
 
   const handleLogoutRef = useRef(handleLogout);
-  handleLogoutRef.current = handleLogout;
+
+  // El ref se sincroniza en un efecto (nunca durante el render) para que el
+  // intervalo de inactividad, que no se re-suscribe, siempre llame a la
+  // versión vigente de handleLogout.
+  useEffect(() => {
+    handleLogoutRef.current = handleLogout;
+  }, [handleLogout]);
 
   useEffect(() => {
     const deadlineRef = { current: Date.now() + INACTIVITY_TIMEOUT_MS };

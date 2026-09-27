@@ -8,8 +8,10 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Equipment, WorkOrder } from '@/lib/types';
-import { ArrowLeft, FileDown, Plus } from 'lucide-react';
+import { Equipment, WorkOrder, WorkOrderPart } from '@/lib/types';
+import { buildOtDocument } from '@/lib/ot-document';
+import { downloadWorkOrderPdf } from '@/lib/pdf/work-order';
+import { ArrowLeft, Eye, FileDown, FileText, Plus } from 'lucide-react';
 
 const QrPrintLabel = dynamic(() => import('@/components/qr/QrPrintLabel').then(mod => ({ default: mod.QrPrintLabel })), {
   ssr: false,
@@ -24,6 +26,7 @@ export default function EquipmentDetailPage() {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -73,6 +76,31 @@ export default function EquipmentDetailPage() {
 
     loadData();
   }, [id, router, supabase]);
+
+  async function handleDownloadPdf(wo: WorkOrder, eq: Equipment) {
+    setDownloadingId(wo.id);
+
+    try {
+      const [partsResult, technicianResult] = await Promise.all([
+        supabase.from('work_order_parts').select('*').eq('work_order_id', wo.id).order('id'),
+        supabase.from('profiles').select('full_name').eq('id', wo.technician_id).single(),
+      ]);
+
+      const document = buildOtDocument({
+        workOrder: wo,
+        equipment: eq,
+        technicianName: technicianResult.data?.full_name ?? null,
+        parts: (partsResult.data as WorkOrderPart[]) ?? [],
+      });
+
+      await downloadWorkOrderPdf(supabase, document);
+    } catch (error) {
+      console.error('Error al generar el PDF:', error);
+      alert('No se pudo generar el PDF de la orden de trabajo');
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   async function handleDownload(bucket: 'attachments' | 'signatures', path: string) {
     const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 60);
@@ -189,7 +217,7 @@ export default function EquipmentDetailPage() {
                 <CardDescription>Historial de mantenciones</CardDescription>
               </div>
               <Link href={`/dashboard/work-orders/new?equipment_id=${id}`}>
-                <Button size="sm" gap-2>
+                <Button size="sm">
                   <Plus className="w-4 h-4" />
                   Nueva OT
                 </Button>
@@ -213,6 +241,22 @@ export default function EquipmentDetailPage() {
                       </div>
                       <p className="text-sm text-slate-700 mb-2">{wo.problem_description}</p>
                       <div className="flex flex-wrap gap-4">
+                        <Link
+                          href={`/dashboard/work-orders/${wo.id}`}
+                          className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Ver OT
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadPdf(wo, equipment)}
+                          disabled={downloadingId === wo.id}
+                          className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                        >
+                          <FileText className="w-4 h-4" />
+                          {downloadingId === wo.id ? 'Generando...' : 'Descargar PDF'}
+                        </button>
                         {wo.attachment_path && (
                           <button
                             type="button"

@@ -80,7 +80,7 @@ export default function NewEquipmentPage() {
       } else {
         router.push('/dashboard');
       }
-    } catch (err) {
+    } catch {
       setError('Error al crear el equipo');
     } finally {
       setLoading(false);

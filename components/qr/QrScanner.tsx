@@ -31,6 +31,10 @@ export function QrScanner() {
   useEffect(() => {
     if (!scannerRef.current || !scanning) return;
 
+    // Guardamos el nodo: durante el cleanup `scannerRef.current` puede haber
+    // cambiado, y necesitamos liberar el MediaStream del elemento original.
+    const mountNode = scannerRef.current;
+
     const scanner = new Html5QrcodeScanner(
       'qr-scanner',
       { fps: 10, qrbox: { width: 250, height: 250 } },
@@ -51,12 +55,17 @@ export function QrScanner() {
       // Ignore scan failures - just keep scanning
     };
 
-    try {
-      scanner.render(onScanSuccess, onScanFailure);
-    } catch (err: unknown) {
-      setError('No se puede acceder a la cámara. Por favor, verifica los permisos.');
-      setScanning(false);
-    }
+    // `render` puede fallar de forma sincrona (permisos de camara). Se ejecuta
+    // dentro de una promesa para que el setState no sea sincrono en el cuerpo
+    // del efecto, que dispara renders en cascada.
+    void (async () => {
+      try {
+        scanner.render(onScanSuccess, onScanFailure);
+      } catch {
+        setError('No se puede acceder a la cámara. Por favor, verifica los permisos.');
+        setScanning(false);
+      }
+    })();
 
     return () => {
       if (scanning) {
@@ -65,7 +74,7 @@ export function QrScanner() {
 
       // Defensive fallback: html5-qrcode's clear() can silently no-op if the
       // camera was still initializing, leaving the MediaStream active.
-      const video = scannerRef.current?.querySelector('video');
+      const video = mountNode.querySelector('video');
       const stream = video?.srcObject as MediaStream | null;
       stream?.getTracks().forEach((track) => track.stop());
     };

@@ -101,7 +101,7 @@ export default function EditEquipmentPage() {
       } else {
         router.push(`/dashboard/equipments/${id}`);
       }
-    } catch (err) {
+    } catch {
       setError('Error al actualizar el equipo');
     } finally {
       setLoading(false);
@@ -128,7 +128,7 @@ export default function EditEquipmentPage() {
       } else {
         router.push('/dashboard');
       }
-    } catch (err) {
+    } catch {
       setError('Error al eliminar el equipo');
       setDeleting(false);
     }

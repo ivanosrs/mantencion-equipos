@@ -1,12 +1,13 @@
 {
   "name": "mantencion-equipos",
-  "version": "0.1.4",
+  "version": "0.1.13",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prepare": "node scripts/install-hooks.mjs"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.11",
@@ -15,6 +16,7 @@
     "@radix-ui/react-select": "^2.3.7",
     "@radix-ui/react-slot": "^1.3.3",
     "@radix-ui/react-tabs": "^1.1.21",
+    "@radix-ui/react-tooltip": "^1.2.16",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
     "@yudiel/react-qr-scanner": "^2.6.0",
@@ -23,6 +25,7 @@
     "cmdk": "^1.1.1",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.34.0",
     "next": "16.3.3",
     "qrcode": "^1.5.4",

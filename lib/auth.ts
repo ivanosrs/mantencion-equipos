@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import type { AuthError } from '@supabase/supabase-js';
 
 export async function signUp(email: string, password: string, fullName: string) {
   const supabase = await createClient();
@@ -18,7 +19,10 @@ export async function signUp(email: string, password: string, fullName: string) 
   return { data, error };
 }
 
-export async function signIn(email: string, password: string) {
+export async function signIn(
+  email: string,
+  password: string
+): Promise<{ data: { user: { id: string } } | null; error: AuthError | null }> {
   const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -26,7 +30,28 @@ export async function signIn(email: string, password: string) {
     password,
   });
 
-  return { data, error };
+  if (error || !data.user) {
+    return { data: null, error };
+  }
+
+  // Baja logica: un usuario desactivado no puede iniciar sesion.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_active')
+    .eq('id', data.user.id)
+    .maybeSingle();
+
+  if (profile?.is_active === false) {
+    await supabase.auth.signOut();
+    return {
+      data: null,
+      error: {
+        message: 'Tu cuenta está desactivada. Contacta al administrador para reactivarla.',
+      } as AuthError,
+    };
+  }
+
+  return { data: { user: data.user }, error: null };
 }
 
 export async function signOut() {

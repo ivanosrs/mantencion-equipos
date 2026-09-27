@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,6 @@ import { Plus, Search } from 'lucide-react';
 
 export default function DashboardPage() {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
-  const [filteredEquipments, setFilteredEquipments] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -54,8 +53,9 @@ export default function DashboardPage() {
     loadData();
   }, [supabase]);
 
-  // Filter equipments
-  useEffect(() => {
+  // El filtrado se deriva durante el render en vez de copiar el estado en un
+  // efecto, que provocaba renders en cascada.
+  const filteredEquipments = useMemo(() => {
     let filtered = equipments;
 
     if (searchTerm) {
@@ -72,7 +72,7 @@ export default function DashboardPage() {
       filtered = filtered.filter((eq) => eq.status === statusFilter);
     }
 
-    setFilteredEquipments(filtered);
+    return filtered;
   }, [equipments, searchTerm, statusFilter]);
 
   const getStatusColor = (status: string) => {

@@ -1,5 +1,6 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist } from 'next/font/google';
+import { ToastProvider, Toaster } from '@/components/ui/toast';
 import './globals.css';
 
 const geist = Geist({
@@ -10,14 +11,22 @@ const geist = Geist({
 export const metadata: Metadata = {
   title: 'Gestión de Mantenciones',
   description: 'Sistema de gestión y seguimiento de mantenciones de equipos',
-  viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={`${geist.variable} h-full`}>
       <body className="min-h-full flex flex-col font-sans antialiased">
-        {children}
+        <ToastProvider>
+          {children}
+          <Toaster />
+        </ToastProvider>
       </body>
     </html>
   );

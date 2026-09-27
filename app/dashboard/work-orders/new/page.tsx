@@ -10,29 +10,53 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Equipment, ServiceType } from '@/lib/types';
+import { OT_ACTIONS, OT_SERVICE_TYPES } from '@/lib/ot-document';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 const SignaturePad = dynamic(() => import('@/components/work-orders/SignaturePad').then(mod => ({ default: mod.SignaturePad })), {
   ssr: false,
 });
 
-const ACTIONS = [
-  'Limpieza general',
-  'Chequeo de funcionamiento',
-  'Chequeo de RPM',
-  'Lubricación de partes móviles',
-  'Reparación de tarjeta electrónica',
-  'Reemplazo de piezas',
-  'Calibración',
-];
+const ACTIONS = OT_ACTIONS;
 
-const SERVICE_TYPES: { value: ServiceType; label: string }[] = [
-  { value: 'preventive', label: 'Mantención Preventiva' },
-  { value: 'install_uninstall', label: 'Instalación/Desinstalación' },
-  { value: 'corrective', label: 'Acción Correctiva' },
-  { value: 'training', label: 'Capacitación Usuario' },
-  { value: 'followup', label: 'Seguimiento' },
-];
+const SERVICE_TYPES = OT_SERVICE_TYPES;
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_IMAGE_DIMENSION = 1024;
+const IMAGE_QUALITY = 0.7;
+const MINIMUM_DAYS_BETWEEN_OT = 180;
+
+async function compressImage(file: File): Promise<File> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height));
+
+  if (scale === 1 && file.size <= MAX_FILE_SIZE) {
+    bitmap.close();
+    return file;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    bitmap.close();
+    return file;
+  }
+
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, 'image/jpeg', IMAGE_QUALITY)
+  );
+
+  if (!blob) return file;
+
+  const base = file.name.replace(/\.[^.]+$/, '');
+  return new File([blob], `${base}.jpg`, { type: 'image/jpeg' });
+}
 
 interface Part {
   id: string;
@@ -54,6 +78,11 @@ export default function NewWorkOrderPage() {
   const [signatureBlob, setSignatureBlob] = useState<Blob | null>(null);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [generatingOtNumber, setGeneratingOtNumber] = useState(false);
+  const [eligibility, setEligibility] = useState<{
+    allowed: boolean;
+    lastInterventionDate: string | null;
+    daysRemaining: number;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     ot_number: '',
@@ -105,13 +134,32 @@ export default function NewWorkOrderPage() {
           ...prev,
           client_name: data?.location || '',
         }));
-      } catch (err) {
+      } catch {
         setError('Error al cargar el equipo');
       }
     }
 
     loadData();
   }, [equipmentId, router, supabase]);
+
+  useEffect(() => {
+    if (!equipmentId) return;
+
+    let cancelled = false;
+
+    async function checkEligibility() {
+      const res = await fetch(`/api/work-orders/eligibility?equipment_id=${equipmentId}`);
+      if (res.ok && !cancelled) {
+        setEligibility(await res.json());
+      }
+    }
+
+    checkEligibility();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [equipmentId]);
 
   async function handleGenerateOtNumber() {
     setGeneratingOtNumber(true);
@@ -125,7 +173,7 @@ export default function NewWorkOrderPage() {
       } else {
         setFormData((prev) => ({ ...prev, ot_number: data }));
       }
-    } catch (err) {
+    } catch {
       setError('No se pudo generar el número de OT automáticamente');
     } finally {
       setGeneratingOtNumber(false);
@@ -167,12 +215,47 @@ export default function NewWorkOrderPage() {
     setParts(parts.filter((p) => p.id !== id));
   }
 
+  async function handleAttachmentChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      setAttachmentFile(null);
+      setError('El archivo supera el máximo de 5 MB');
+      e.target.value = '';
+      return;
+    }
+
+    setError('');
+
+    if (file.type.startsWith('image/')) {
+      setAttachmentFile(await compressImage(file));
+    } else {
+      setAttachmentFile(file);
+    }
+
+    // Solo se permite 1 documento por OT: limpiar el input descarta el anterior.
+    e.target.value = '';
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
+      if (eligibility && !eligibility.allowed) {
+        setError(
+          `No se puede crear la OT: faltan ${eligibility.daysRemaining} días desde la última mantención`
+        );
+        return;
+      }
+
+      if (attachmentFile && attachmentFile.size > MAX_FILE_SIZE) {
+        setError('El adjunto supera el máximo de 5 MB');
+        return;
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -237,14 +320,21 @@ export default function NewWorkOrderPage() {
         .single();
 
       if (woError) {
-        setError(woError.message);
+        setError(
+          woError.message.includes('minimo 180')
+            ? woError.message
+            : 'Error al crear la orden de trabajo'
+        );
         return;
       }
 
       // Insert parts
       if (parts.length > 0) {
-        const partsToInsert = parts.map(({ id, ...p }) => ({
-          ...p,
+        const partsToInsert = parts.map((part) => ({
+          code: part.code,
+          description: part.description,
+          quantity: part.quantity,
+          observations: part.observations,
           work_order_id: woData.id,
         }));
 
@@ -268,7 +358,7 @@ export default function NewWorkOrderPage() {
         .eq('id', equipmentId);
 
       router.push(`/dashboard/equipments/${equipmentId}`);
-    } catch (err) {
+    } catch {
       setError('Error al crear la orden de trabajo');
     } finally {
       setLoading(false);
@@ -295,6 +385,18 @@ export default function NewWorkOrderPage() {
         {error && (
           <div className="bg-red-50 text-red-600 p-4 rounded-lg text-sm">
             {error}
+          </div>
+        )}
+
+        {eligibility && !eligibility.allowed && (
+          <div className="bg-amber-50 text-amber-800 p-4 rounded-lg text-sm border border-amber-200">
+            <p className="font-semibold">Período de mantención no cumplido</p>
+            <p className="mt-1">
+              La última OT de este equipo fue el{' '}
+              {new Date(eligibility.lastInterventionDate!).toLocaleDateString('es-CL')}. Faltan{' '}
+              {eligibility.daysRemaining} días para cumplir los {MINIMUM_DAYS_BETWEEN_OT} días
+              obligatorios entre mantenciones.
+            </p>
           </div>
         )}
 
@@ -547,12 +649,27 @@ export default function NewWorkOrderPage() {
               <Input
                 type="file"
                 accept="image/*,.pdf"
-                onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+                onChange={handleAttachmentChange}
+                disabled={Boolean(attachmentFile)}
               />
+              <p className="text-xs text-slate-500">
+                Un solo documento por OT · máx. 5 MB · las imágenes se comprimen automáticamente
+              </p>
               {attachmentFile && (
-                <p className="text-sm text-green-600">
-                  Archivo seleccionado: {attachmentFile.name}
-                </p>
+                <div className="flex items-center gap-3">
+                  <p className="text-sm text-green-600">
+                    Archivo seleccionado: {attachmentFile.name} (
+                    {(attachmentFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setAttachmentFile(null)}
+                  >
+                    Quitar
+                  </Button>
+                </div>
               )}
             </div>
           </CardContent>
@@ -560,7 +677,11 @@ export default function NewWorkOrderPage() {
 
         {/* Actions */}
         <div className="flex gap-2">
-          <Button type="submit" disabled={loading} className="flex-1">
+          <Button
+            type="submit"
+            disabled={loading || (eligibility !== null && !eligibility.allowed)}
+            className="flex-1"
+          >
             {loading ? 'Guardando...' : 'Guardar Orden de Trabajo'}
           </Button>
           <Button type="button" variant="outline" onClick={() => router.back()}>
