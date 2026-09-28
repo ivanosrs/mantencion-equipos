@@ -241,10 +241,10 @@ export default function DashboardPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredEquipments.map((equipment) => (
-            <Card
-              key={equipment.id}
-              className={`hover:shadow-lg transition ${!equipment.is_active ? 'border-slate-300 bg-slate-50' : ''}`}
-            >
+            <Link key={equipment.id} href={`/dashboard/equipments/${equipment.id}`}>
+              <Card
+                className={`hover:shadow-lg transition cursor-pointer ${!equipment.is_active ? 'border-slate-300 bg-slate-50' : ''}`}
+              >
               <CardHeader>
                 <div className="flex justify-between items-start gap-2">
                   <div className="flex-1">
@@ -293,6 +293,7 @@ export default function DashboardPage() {
                 )}
               </CardContent>
             </Card>
+            </Link>
           ))}
         </div>
       )}
