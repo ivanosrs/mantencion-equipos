@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Equipment } from '@/lib/types';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, RotateCcw, Trash2 } from 'lucide-react';
 
 export default function DashboardPage() {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
@@ -16,6 +16,8 @@ export default function DashboardPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [viewFilter, setViewFilter] = useState<'active' | 'inactive'>('active');
+  const [restoringId, setRestoringId] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -36,12 +38,18 @@ export default function DashboardPage() {
 
         setIsAdmin(profile?.role === 'admin');
 
-        // Load equipments
-        const { data } = await supabase
-          .from('equipments')
-          .select('*')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false });
+        // Load equipments - admins see all, others only active
+        let query = supabase.from('equipments').select('*').order('created_at', { ascending: false });
+
+        if (!isAdmin) {
+          query = query.eq('is_active', true);
+        } else if (viewFilter === 'active') {
+          query = query.eq('is_active', true);
+        } else {
+          query = query.eq('is_active', false);
+        }
+
+        const { data } = await query;
 
         setEquipments(data || []);
       } catch (error) {
@@ -52,7 +60,7 @@ export default function DashboardPage() {
     }
 
     loadData();
-  }, [supabase]);
+  }, [supabase, isAdmin, viewFilter]);
 
   // El filtrado se deriva durante el render en vez de copiar el estado en un
   // efecto, que provocaba renders en cascada.
@@ -75,6 +83,28 @@ export default function DashboardPage() {
 
     return filtered;
   }, [equipments, searchTerm, statusFilter]);
+
+  async function handleRestore(id: string) {
+    if (!confirm('¿Restaurar este equipo? Volverá a aparecer en la lista de activos.')) return;
+
+    setRestoringId(id);
+    try {
+      const { error } = await supabase
+        .from('equipments')
+        .update({ is_active: true, updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) {
+        alert('Error al restaurar: ' + error.message);
+      } else {
+        setEquipments((prev) => prev.filter((eq) => eq.id !== id));
+      }
+    } catch {
+      alert('Error al restaurar el equipo');
+    } finally {
+      setRestoringId(null);
+    }
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -102,6 +132,17 @@ export default function DashboardPage() {
     }
   };
 
+  const getActiveBadge = (isActive: boolean) => {
+    if (!isActive) {
+      return (
+        <Badge variant="outline" className="bg-slate-100 text-slate-800 ml-2">
+          Inactivo
+        </Badge>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -109,19 +150,49 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold">Equipos</h1>
           <p className="text-slate-600 mt-1">Total: {filteredEquipments.length} equipos</p>
         </div>
-        {isAdmin && (
-          <Link href="/dashboard/equipments/new">
-            <Button className="w-full sm:w-auto gap-2">
-              <Plus className="w-4 h-4" />
-              Nuevo Equipo
-            </Button>
-          </Link>
-        )}
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          {isAdmin && (
+            <Link href="/dashboard/equipments/new">
+              <Button className="w-full sm:w-auto gap-2">
+                <Plus className="w-4 h-4" />
+                Nuevo Equipo
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
+
+      {/* Admin View Filter Tabs */}
+      {isAdmin && (
+        <div className="flex gap-2 bg-slate-100 rounded-lg p-1 w-fit">
+          <button
+            type="button"
+            onClick={() => setViewFilter('active')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+              viewFilter === 'active'
+                ? 'bg-white text-slate-900 shadow'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Activos
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewFilter('inactive')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+              viewFilter === 'inactive'
+                ? 'bg-white text-slate-900 shadow'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Desactivados
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2">Buscar</label>
             <div className="relative">
@@ -148,6 +219,13 @@ export default function DashboardPage() {
               <option value="out_of_service">Fuera de Servicio</option>
             </select>
           </div>
+          {isAdmin && viewFilter === 'inactive' && (
+            <div className="sm:col-span-3 flex items-end">
+              <p className="text-sm text-slate-500">
+                Los equipos desactivados no aparecen en la vista principal ni pueden recibir OTs
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -157,45 +235,64 @@ export default function DashboardPage() {
       ) : filteredEquipments.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-slate-500">
-            No se encontraron equipos
+            No se encontraron equipos {viewFilter === 'inactive' && 'desactivados'}
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredEquipments.map((equipment) => (
-            <Link key={equipment.id} href={`/dashboard/equipments/${equipment.id}`}>
-              <Card className="cursor-pointer hover:shadow-lg transition">
-                <CardHeader>
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">{equipment.type}</CardTitle>
-                      <CardDescription>{equipment.brand} {equipment.model}</CardDescription>
-                    </div>
+            <Card
+              key={equipment.id}
+              className={`hover:shadow-lg transition ${!equipment.is_active ? 'border-slate-300 bg-slate-50' : ''}`}
+            >
+              <CardHeader>
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg">{equipment.type}</CardTitle>
+                    <CardDescription>{equipment.brand} {equipment.model}</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <Badge variant="outline" className={getStatusColor(equipment.status)}>
                       {getStatusLabel(equipment.status)}
                     </Badge>
+                    {getActiveBadge(equipment.is_active)}
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div>
+                  <p className="text-slate-500">Serie</p>
+                  <p className="font-mono text-slate-900">{equipment.serial_number}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Ubicación</p>
+                  <p className="text-slate-900">{equipment.location}</p>
+                </div>
+                {equipment.last_maintenance_date && (
                   <div>
-                    <p className="text-slate-500">Serie</p>
-                    <p className="font-mono text-slate-900">{equipment.serial_number}</p>
+                    <p className="text-slate-500">Última mantención</p>
+                    <p className="text-slate-900">
+                      {new Date(equipment.last_maintenance_date).toLocaleDateString('es-CL')}
+                    </p>
                   </div>
-                  <div>
-                    <p className="text-slate-500">Ubicación</p>
-                    <p className="text-slate-900">{equipment.location}</p>
+                )}
+                {!equipment.is_active && isAdmin && (
+                  <div className="pt-2 border-t flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRestore(equipment.id)}
+                      disabled={restoringId === equipment.id}
+                      className="gap-2"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      {restoringId === equipment.id ? 'Restaurando...' : 'Restaurar'}
+                    </Button>
                   </div>
-                  {equipment.last_maintenance_date && (
-                    <div>
-                      <p className="text-slate-500">Última mantención</p>
-                      <p className="text-slate-900">
-                        {new Date(equipment.last_maintenance_date).toLocaleDateString('es-CL')}
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </Link>
+                )}
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
