@@ -21,6 +21,7 @@ export interface Equipment {
   created_by: string;
   created_at: string;
   updated_at: string;
+  is_active: boolean;
 }
 
 export interface PublicEquipment {
@@ -32,6 +33,7 @@ export interface PublicEquipment {
   location: string;
   status: 'operational' | 'in_maintenance' | 'out_of_service';
   last_maintenance_date?: string;
+  is_active: boolean;
 }
 
 export type ServiceType = 'preventive' | 'install_uninstall' | 'corrective' | 'training' | 'followup';

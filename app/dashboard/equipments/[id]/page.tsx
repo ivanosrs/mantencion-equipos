@@ -139,6 +139,17 @@ export default function EquipmentDetailPage() {
     }
   };
 
+  const getActiveBadge = (isActive: boolean) => {
+    if (!isActive) {
+      return (
+        <Badge variant="outline" className="bg-slate-100 text-slate-800 ml-2">
+          Inactivo
+        </Badge>
+      );
+    }
+    return null;
+  };
+
   if (loading) return <div>Cargando...</div>;
   if (!equipment) return <div>Equipo no encontrado</div>;
 
@@ -157,9 +168,12 @@ export default function EquipmentDetailPage() {
           <h1 className="text-3xl font-bold">{equipment.type}</h1>
           <p className="text-slate-600">{equipment.brand} {equipment.model}</p>
         </div>
-        <Badge variant="outline" className={getStatusColor(equipment.status)}>
-          {getStatusLabel(equipment.status)}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className={getStatusColor(equipment.status)}>
+            {getStatusLabel(equipment.status)}
+          </Badge>
+          {getActiveBadge(equipment.is_active)}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -217,7 +231,7 @@ export default function EquipmentDetailPage() {
                 <CardDescription>Historial de mantenciones</CardDescription>
               </div>
               <Link href={`/dashboard/work-orders/new?equipment_id=${id}`}>
-                <Button size="sm">
+                <Button size="sm" disabled={!equipment.is_active}>
                   <Plus className="w-4 h-4" />
                   Nueva OT
                 </Button>

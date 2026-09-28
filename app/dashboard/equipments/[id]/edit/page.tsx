@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Archive } from 'lucide-react';
 
 export default function EditEquipmentPage() {
   const params = useParams();
@@ -109,7 +109,7 @@ export default function EditEquipmentPage() {
   }
 
   async function handleDelete() {
-    if (!confirm('¿Estás seguro de eliminar este equipo? Esta acción no se puede deshacer.')) {
+    if (!confirm('¿Estás seguro de desactivar este equipo? Podrás restaurarlo más tarde si es necesario.')) {
       return;
     }
 
@@ -117,19 +117,19 @@ export default function EditEquipmentPage() {
     setError('');
 
     try {
-      const { error: deleteError } = await supabase
+      const { error: updateError } = await supabase
         .from('equipments')
-        .delete()
+        .update({ is_active: false, updated_at: new Date().toISOString() })
         .eq('id', id);
 
-      if (deleteError) {
-        setError(deleteError.message);
+      if (updateError) {
+        setError(updateError.message);
         setDeleting(false);
       } else {
         router.push('/dashboard');
       }
     } catch {
-      setError('Error al eliminar el equipo');
+      setError('Error al desactivar el equipo');
       setDeleting(false);
     }
   }
@@ -264,8 +264,8 @@ export default function EditEquipmentPage() {
                 disabled={deleting}
                 className="w-full gap-2"
               >
-                <Trash2 className="w-4 h-4" />
-                {deleting ? 'Eliminando...' : 'Eliminar Equipo'}
+                <Archive className="w-4 h-4" />
+                {deleting ? 'Desactivando...' : 'Desactivar Equipo'}
               </Button>
             </div>
           </form>

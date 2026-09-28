@@ -40,6 +40,7 @@ export default function DashboardPage() {
         const { data } = await supabase
           .from('equipments')
           .select('*')
+          .eq('is_active', true)
           .order('created_at', { ascending: false });
 
         setEquipments(data || []);

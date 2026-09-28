@@ -78,6 +78,7 @@ export default function NewWorkOrderPage() {
   const [signatureBlob, setSignatureBlob] = useState<Blob | null>(null);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [generatingOtNumber, setGeneratingOtNumber] = useState(false);
+  const [otNumberWarning, setOtNumberWarning] = useState<string | null>(null);
   const [eligibility, setEligibility] = useState<{
     allowed: boolean;
     lastInterventionDate: string | null;
@@ -172,11 +173,38 @@ export default function NewWorkOrderPage() {
         setError('No se pudo generar el número de OT automáticamente');
       } else {
         setFormData((prev) => ({ ...prev, ot_number: data }));
+        setOtNumberWarning(null);
       }
     } catch {
       setError('No se pudo generar el número de OT automáticamente');
     } finally {
       setGeneratingOtNumber(false);
+    }
+  }
+
+  async function checkOtNumberExists(otNumber: string) {
+    if (!otNumber || otNumber.length < 3) {
+      setOtNumberWarning(null);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('check_ot_number_exists', {
+        p_ot_number: otNumber,
+      });
+
+      if (error) {
+        console.error('Error checking OT number:', error);
+        return;
+      }
+
+      if (data) {
+        setOtNumberWarning('Este número de OT ya existe. Usa otro número.');
+      } else {
+        setOtNumberWarning(null);
+      }
+    } catch {
+      console.error('Error checking OT number');
     }
   }
 
@@ -320,11 +348,14 @@ export default function NewWorkOrderPage() {
         .single();
 
       if (woError) {
-        setError(
-          woError.message.includes('minimo 180')
-            ? woError.message
-            : 'Error al crear la orden de trabajo'
-        );
+        if (woError.message.includes('minimo 180')) {
+          setError(woError.message);
+        } else if (woError.message.includes('duplicate') || woError.message.includes('unique') || woError.code === '23505') {
+          setError('El número de OT ya existe. Por favor, usa otro número.');
+          setOtNumberWarning('El número de OT ya existe. Por favor, usa otro número.');
+        } else {
+          setError('Error al crear la orden de trabajo');
+        }
         return;
       }
 
@@ -414,6 +445,7 @@ export default function NewWorkOrderPage() {
                     placeholder="Ej: 00554"
                     value={formData.ot_number}
                     onChange={(e) => setFormData({ ...formData, ot_number: e.target.value })}
+                    onBlur={(e) => checkOtNumberExists(e.target.value)}
                     required
                   />
                   <Button
@@ -425,6 +457,11 @@ export default function NewWorkOrderPage() {
                     {generatingOtNumber ? '...' : 'Generar automático'}
                   </Button>
                 </div>
+                {otNumberWarning && (
+                  <p className="text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-md border border-amber-200">
+                    {otNumberWarning}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
