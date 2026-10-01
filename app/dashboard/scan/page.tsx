@@ -1,7 +1,6 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const QrScanner = dynamic(() => import('@/components/qr/QrScanner').then(mod => ({ default: mod.QrScanner })), {
   loading: () => <div className="h-96 flex items-center justify-center">Cargando cámara...</div>,
@@ -18,15 +17,7 @@ export default function ScanPage() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Lector QR</CardTitle>
-          <CardDescription>Posiciona el código QR dentro del marco</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <QrScanner />
-        </CardContent>
-      </Card>
+      <QrScanner />
     </div>
   );
 }

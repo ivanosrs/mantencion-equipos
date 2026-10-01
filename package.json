@@ -1,6 +1,6 @@
 {
   "name": "mantencion-equipos",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -19,7 +19,6 @@
     "@radix-ui/react-tooltip": "^1.2.16",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
-    "@yudiel/react-qr-scanner": "^2.6.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

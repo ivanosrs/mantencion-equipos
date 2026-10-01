@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Equipment } from '@/lib/types';
-import { Plus, Search, RotateCcw, Trash2 } from 'lucide-react';
+import { Plus, Search, RotateCcw } from 'lucide-react';
 
 export default function DashboardPage() {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
