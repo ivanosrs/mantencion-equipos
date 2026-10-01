@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 import { signIn } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -14,9 +14,11 @@ export function LoginForm({ initialError = '' }: { initialError?: string }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState(initialError);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl');
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -24,12 +26,14 @@ export function LoginForm({ initialError = '' }: { initialError?: string }) {
     setLoading(true);
 
     try {
-      const { data, error: signInError } = await signIn(email, password);
+      const { data, error: signInError } = await signIn(email, password, rememberMe);
 
       if (signInError) {
         setError(signInError.message);
       } else if (data) {
-        router.push('/dashboard');
+        const target = returnUrl && returnUrl.startsWith('/') ? returnUrl : '/dashboard';
+        // Recarga completa para que SessionKeeper detecte la cookie ya emitida.
+        window.location.assign(target);
       }
     } catch {
       setError('Error al iniciar sesión');
@@ -83,6 +87,15 @@ export function LoginForm({ initialError = '' }: { initialError?: string }) {
                 </button>
               </div>
             </div>
+            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+              />
+              Recordarme
+            </label>
             {error && (
               <div className="text-sm text-red-500 bg-red-50 p-3 rounded">
                 {error}

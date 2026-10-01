@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist } from 'next/font/google';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
+import { SessionKeeper } from '@/components/session-keeper';
 import './globals.css';
 
 const geist = Geist({
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" className={`${geist.variable} h-full`}>
       <body className="min-h-full flex flex-col font-sans antialiased">
         <ToastProvider>
+          <SessionKeeper />
           {children}
           <Toaster />
         </ToastProvider>

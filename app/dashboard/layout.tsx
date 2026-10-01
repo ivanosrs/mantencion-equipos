@@ -7,8 +7,15 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Menu, LogOut, QrCode, Wrench, Users } from 'lucide-react';
 import { APP_VERSION } from '@/lib/version';
+import {
+  checkAndLogout,
+  clearSession,
+  getSessionData,
+  isSessionExpired,
+  stopSessionListeners,
+} from '@/lib/session';
 
-const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
+const IDLE_MS = 30 * 60 * 1000;
 
 interface UserInfo {
   email: string;
@@ -16,7 +23,8 @@ interface UserInfo {
   role: 'admin' | 'technician';
 }
 
-function formatCountdown(totalSeconds: number) {
+function formatCountdown(totalMs: number) {
+  const totalSeconds = Math.max(0, Math.ceil(totalMs / 1000));
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -30,19 +38,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [remainingSeconds, setRemainingSeconds] = useState(INACTIVITY_TIMEOUT_MS / 1000);
+  const [remainingMs, setRemainingMs] = useState(IDLE_MS);
   const router = useRouter();
   const supabase = createClient();
   const isAdmin = userInfo?.role === 'admin';
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     async function checkAuth() {
       try {
         const {
           data: { user },
+          error,
         } = await supabase.auth.getUser();
 
-        if (!user) {
+        if (error || !user) {
+          clearSession();
+          stopSessionListeners();
+          await supabase.auth.signOut().catch(() => undefined);
           router.push('/login');
           return;
         }
@@ -55,6 +68,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         // Baja logica: cerrar la sesion y expulsar al dashboard.
         if (profile?.is_active === false) {
+          clearSession();
+          stopSessionListeners();
           await supabase.auth.signOut();
           router.push('/login?error=inactivo');
           return;
@@ -65,54 +80,66 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           fullName: profile?.full_name || '',
           role: profile?.role === 'admin' ? 'admin' : 'technician',
         });
+
         setLoading(false);
       } catch {
+        clearSession();
+        stopSessionListeners();
         router.push('/login');
       }
     }
 
     checkAuth();
+
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+    };
   }, [router, supabase]);
 
   const handleLogout = useCallback(async () => {
+    clearSession();
+    stopSessionListeners();
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
     await supabase.auth.signOut();
     router.push('/login');
   }, [router, supabase]);
 
   const handleLogoutRef = useRef(handleLogout);
 
-  // El ref se sincroniza en un efecto (nunca durante el render) para que el
-  // intervalo de inactividad, que no se re-suscribe, siempre llame a la
-  // versión vigente de handleLogout.
   useEffect(() => {
     handleLogoutRef.current = handleLogout;
   }, [handleLogout]);
 
+  // Contador absoluto basado en effectiveExpiresAt
   useEffect(() => {
-    const deadlineRef = { current: Date.now() + INACTIVITY_TIMEOUT_MS };
-
-    const resetDeadline = () => {
-      deadlineRef.current = Date.now() + INACTIVITY_TIMEOUT_MS;
-    };
-
-    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
-    activityEvents.forEach((event) => window.addEventListener(event, resetDeadline));
-    resetDeadline();
-
-    const interval = setInterval(() => {
-      const secondsLeft = Math.max(0, Math.round((deadlineRef.current - Date.now()) / 1000));
-      setRemainingSeconds(secondsLeft);
-
-      if (secondsLeft <= 0) {
-        handleLogoutRef.current();
+    if (loading) return;
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    countdownIntervalRef.current = setInterval(() => {
+      const data = getSessionData();
+      // SessionKeeper aún no inicializó la metadata: no forzar logout.
+      if (!data || data.effectiveExpiresAt == null) return;
+      const rem = Math.max(0, data.effectiveExpiresAt - Date.now());
+      setRemainingMs(rem);
+      if (rem <= 0 || data.isExpired || isSessionExpired()) {
+        void checkAndLogout();
       }
     }, 1000);
-
     return () => {
-      clearInterval(interval);
-      activityEvents.forEach((event) => window.removeEventListener(event, resetDeadline));
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
     };
-  }, []);
+  }, [loading]);
 
   if (loading || !userInfo) {
     return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
@@ -195,7 +222,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <div className="text-xs text-slate-400 border-l border-slate-200 pl-3">
               Sesión expira en<br />
-              <span className="font-mono">{formatCountdown(remainingSeconds)}</span>
+              <span className="font-mono">{formatCountdown(remainingMs)}</span>
             </div>
           </div>
         </div>

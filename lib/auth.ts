@@ -1,6 +1,7 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
+import { createClient, REMEMBER_COOKIE, REMEMBER_MAX_AGE } from '@/lib/supabase/server';
 import type { AuthError } from '@supabase/supabase-js';
 
 export async function signUp(email: string, password: string, fullName: string) {
@@ -21,8 +22,18 @@ export async function signUp(email: string, password: string, fullName: string) 
 
 export async function signIn(
   email: string,
-  password: string
+  password: string,
+  rememberMe = false
 ): Promise<{ data: { user: { id: string } } | null; error: AuthError | null }> {
+  // Persistir la preferencia "Recordarme" ANTES de crear el cliente para que
+  // las cookies de sesión de Supabase adopten (o no) el maxAge correspondiente.
+  const cookieStore = await cookies();
+  cookieStore.set(REMEMBER_COOKIE, rememberMe ? '1' : '0', {
+    path: '/',
+    sameSite: 'lax',
+    ...(rememberMe ? { maxAge: REMEMBER_MAX_AGE } : {}),
+  });
+
   const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signInWithPassword({
