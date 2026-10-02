@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Menu, LogOut, QrCode, Wrench, Users } from 'lucide-react';
 import { APP_VERSION } from '@/lib/version';
+import { useIsTouchDevice } from '@/lib/use-touch-device';
 import {
   checkAndLogout,
   clearSession,
@@ -42,6 +43,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const supabase = createClient();
   const isAdmin = userInfo?.role === 'admin';
+  const isTouchDevice = useIsTouchDevice();
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -161,14 +163,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Wrench className="w-5 h-5" />
               Equipos
             </Link>
-            <Link
-              href="/dashboard/scan"
-              onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-800 transition"
-            >
-              <QrCode className="w-5 h-5" />
-              Escanear QR
-            </Link>
+            {isTouchDevice && (
+              <Link
+                href="/dashboard/scan"
+                onClick={() => setSidebarOpen(false)}
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-800 transition"
+              >
+                <QrCode className="w-5 h-5" />
+                Escanear QR
+              </Link>
+            )}
             {isAdmin && (
               <Link
                 href="/dashboard/users"

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/motion/tabs';
 import { Equipment } from '@/lib/types';
 import { Plus, Search, RotateCcw } from 'lucide-react';
 
@@ -164,30 +165,17 @@ export default function DashboardPage() {
 
       {/* Admin View Filter Tabs */}
       {isAdmin && (
-        <div className="flex gap-2 bg-slate-100 rounded-lg p-1 w-fit">
-          <button
-            type="button"
-            onClick={() => setViewFilter('active')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-              viewFilter === 'active'
-                ? 'bg-white text-slate-900 shadow'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Activos
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewFilter('inactive')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-              viewFilter === 'inactive'
-                ? 'bg-white text-slate-900 shadow'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Desactivados
-          </button>
-        </div>
+        <Tabs
+          value={viewFilter}
+          onValueChange={(v) => setViewFilter(v as 'active' | 'inactive')}
+          variant="segment"
+          className="w-fit"
+        >
+          <TabsList>
+            <TabsTrigger value="active" className="px-4 py-2">Activos</TabsTrigger>
+            <TabsTrigger value="inactive" className="px-4 py-2">Desactivados</TabsTrigger>
+          </TabsList>
+        </Tabs>
       )}
 
       {/* Filters */}

@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Equipment, WorkOrder, WorkOrderPart } from '@/lib/types';
 import { buildOtDocument, serviceTypeLabel } from '@/lib/ot-document';
 import { downloadWorkOrderPdf } from '@/lib/pdf/work-order';
-import { ArrowLeft, Eye, FileDown, FileText, Plus } from 'lucide-react';
+import { ArrowLeft, Eye, FileDown, FileText, Pencil, Plus } from 'lucide-react';
 
 const QrPrintLabel = dynamic(() => import('@/components/qr/QrPrintLabel').then(mod => ({ default: mod.QrPrintLabel })), {
   ssr: false,
@@ -180,8 +180,16 @@ export default function EquipmentDetailPage() {
         {/* Equipment info */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle>Información del Equipo</CardTitle>
+              {isAdmin && (
+                <Link href={`/dashboard/equipments/${id}/edit`}>
+                  <Button variant="outline" size="sm" aria-label="Editar equipo">
+                    <Pencil className="w-4 h-4" />
+                    <span className="hidden sm:inline">Editar</span>
+                  </Button>
+                </Link>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -210,16 +218,6 @@ export default function EquipmentDetailPage() {
                   </div>
                 )}
               </div>
-
-              {isAdmin && (
-                <div className="pt-4 border-t flex gap-2">
-                  <Link href={`/dashboard/equipments/${id}/edit`}>
-                    <Button variant="outline" size="sm">
-                      Editar
-                    </Button>
-                  </Link>
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -254,23 +252,25 @@ export default function EquipmentDetailPage() {
                         <Badge variant="secondary">{serviceTypeLabel(wo.service_type)}</Badge>
                       </div>
                       <p className="text-sm text-slate-700 mb-2">{wo.problem_description}</p>
-                      <div className="flex flex-wrap gap-4">
-                        <Link
-                          href={`/dashboard/work-orders/${wo.id}`}
-                          className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
-                        >
-                          <Eye className="w-4 h-4" />
-                          Ver OT
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadPdf(wo, equipment)}
-                          disabled={downloadingId === wo.id}
-                          className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                        >
-                          <FileText className="w-4 h-4" />
-                          {downloadingId === wo.id ? 'Generando...' : 'Descargar PDF'}
-                        </button>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <div className="flex w-full gap-2 sm:w-auto">
+                          <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-none">
+                            <Link href={`/dashboard/work-orders/${wo.id}`}>
+                              <Eye className="w-4 h-4" />
+                              Ver OT
+                            </Link>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownloadPdf(wo, equipment)}
+                            disabled={downloadingId === wo.id}
+                            className="flex-1 sm:flex-none"
+                          >
+                            <FileText className="w-4 h-4" />
+                            {downloadingId === wo.id ? 'Generando...' : 'Descargar PDF'}
+                          </Button>
+                        </div>
                         {wo.attachment_path && (
                           <button
                             type="button"

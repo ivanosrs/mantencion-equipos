@@ -9,7 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/components/ui/use-toast';
-import { Edit, Eye, EyeOff, KeyRound, Phone, Plus, RotateCcw, Trash } from 'lucide-react';
+import { SwipeableRow, type SwipeSide } from '@/components/ui/swipeable-row';
+import { useIsTouchDevice } from '@/lib/use-touch-device';
+import { Edit, Eye, EyeOff, Phone, Plus, RotateCcw, Trash } from 'lucide-react';
 
 type UserRole = 'admin' | 'technician';
 
@@ -57,6 +59,8 @@ export default function UsersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [pendingDeactivate, setPendingDeactivate] = useState<UserRow | null>(null);
+  const [swiped, setSwiped] = useState<{ id: string; side: SwipeSide } | null>(null);
+  const isTouchDevice = useIsTouchDevice();
 
   useEffect(() => {
     async function checkAuth() {
@@ -95,7 +99,7 @@ export default function UsersPage() {
     setShowForm(true);
   }
 
-  function openEditForm(user: UserRow, focusPassword = false) {
+  function openEditForm(user: UserRow) {
     setFormData({
       id: user.id,
       email: user.email,
@@ -107,12 +111,14 @@ export default function UsersPage() {
     setError('');
     setShowPassword(false);
     setShowForm(true);
+  }
 
-    if (focusPassword) {
-      requestAnimationFrame(() => {
-        document.getElementById('password')?.focus();
-      });
-    }
+  // En mobile el formulario queda arriba de la lista: llevar al usuario hasta el.
+  function editFromList(user: UserRow) {
+    openEditForm(user);
+    requestAnimationFrame(() => {
+      document.getElementById('user-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   async function reload() {
@@ -231,7 +237,7 @@ export default function UsersPage() {
         )}
 
         {showForm && (
-          <Card>
+          <Card id="user-form" className="scroll-mt-24">
             <CardHeader>
               <CardTitle>
                 {formData.id ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
@@ -374,11 +380,14 @@ export default function UsersPage() {
                 <p className="text-center text-slate-500 py-8">No hay usuarios registrados</p>
               ) : (
                 <div className="space-y-4">
-                  {users.map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200"
-                    >
+                  {isTouchDevice && (
+                    <p className="text-xs text-slate-500 text-center">
+                      Desliza un usuario hacia la derecha para editar o hacia la izquierda para{' '}
+                      desactivar
+                    </p>
+                  )}
+                  {users.map((user) => {
+                    const info = (
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="font-semibold text-lg truncate">{user.full_name}</p>
@@ -396,89 +405,100 @@ export default function UsersPage() {
                           </p>
                         )}
                       </div>
+                    );
 
-                      <div className="flex gap-3">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              className="cursor-pointer"
-                              aria-label="Ver detalle"
-                            >
-                              <Eye className="w-5 h-5 text-slate-400 hover:text-slate-600 transition-colors" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="font-medium mb-1">Información del usuario</p>
-                            <p>Email: {user.email}</p>
-                            <p>Rol: {roleLabel(user.role)}</p>
-                            <p>Teléfono: {user.phone || 'No registrado'}</p>
-                            <p>Alta: {new Date(user.created_at).toLocaleDateString('es-CL')}</p>
-                          </TooltipContent>
-                        </Tooltip>
+                    if (isTouchDevice) {
+                      return (
+                        <SwipeableRow
+                          key={user.id}
+                          open={swiped?.id === user.id ? swiped.side : null}
+                          onOpenChange={(side) => setSwiped(side ? { id: user.id, side } : null)}
+                          disabled={submitting}
+                          className="border border-slate-200"
+                          startAction={{
+                            label: 'Editar',
+                            icon: <Edit className="w-5 h-5" />,
+                            className: 'bg-yellow-400 text-slate-900',
+                            onSelect: () => editFromList(user),
+                          }}
+                          endAction={
+                            user.is_active
+                              ? {
+                                  label: 'Desactivar',
+                                  icon: <Trash className="w-5 h-5" />,
+                                  className: 'bg-red-600 text-white',
+                                  onSelect: () => setUserActive(user, false),
+                                }
+                              : {
+                                  label: 'Reactivar',
+                                  icon: <RotateCcw className="w-5 h-5" />,
+                                  className: 'bg-emerald-600 text-white',
+                                  onSelect: () => setUserActive(user, true),
+                                }
+                          }
+                        >
+                          <div className="flex items-center p-4 bg-slate-50">{info}</div>
+                        </SwipeableRow>
+                      );
+                    }
 
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              onClick={() => openEditForm(user)}
-                              className="cursor-pointer"
-                              aria-label="Editar usuario"
-                            >
-                              <Edit className="w-5 h-5 text-slate-400 hover:text-slate-600 transition-colors" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>Editar usuario</TooltipContent>
-                        </Tooltip>
+                    return (
+                      <div
+                        key={user.id}
+                        className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200"
+                      >
+                        {info}
 
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              onClick={() => openEditForm(user, true)}
-                              className="cursor-pointer"
-                              aria-label="Cambiar contraseña"
-                            >
-                              <KeyRound className="w-5 h-5 text-slate-400 hover:text-slate-600 transition-colors" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>Cambiar contraseña</TooltipContent>
-                        </Tooltip>
-
-                        {user.is_active ? (
+                        <div className="flex gap-3">
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button
                                 type="button"
-                                onClick={() => setPendingDeactivate(user)}
+                                onClick={() => openEditForm(user)}
                                 className="cursor-pointer"
-                                aria-label="Desactivar usuario"
+                                aria-label="Editar usuario"
                               >
-                                <Trash className="w-5 h-5 text-slate-400 hover:text-red-600 transition-colors" />
+                                <Edit className="w-5 h-5 text-slate-400 hover:text-slate-600 transition-colors" />
                               </button>
                             </TooltipTrigger>
-                            <TooltipContent>
-                              Desactivar usuario — no podrá iniciar sesión, sus datos se conservan
-                            </TooltipContent>
+                            <TooltipContent>Editar usuario</TooltipContent>
                           </Tooltip>
-                        ) : (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                type="button"
-                                onClick={() => setUserActive(user, true)}
-                                className="cursor-pointer"
-                                aria-label="Reactivar usuario"
-                              >
-                                <RotateCcw className="w-5 h-5 text-slate-400 hover:text-emerald-600 transition-colors" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>Reactivar usuario</TooltipContent>
-                          </Tooltip>
-                        )}
+
+                          {user.is_active ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() => setPendingDeactivate(user)}
+                                  className="cursor-pointer"
+                                  aria-label="Desactivar usuario"
+                                >
+                                  <Trash className="w-5 h-5 text-slate-400 hover:text-red-600 transition-colors" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Desactivar usuario — no podrá iniciar sesión, sus datos se conservan
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() => setUserActive(user, true)}
+                                  className="cursor-pointer"
+                                  aria-label="Reactivar usuario"
+                                >
+                                  <RotateCcw className="w-5 h-5 text-slate-400 hover:text-emerald-600 transition-colors" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>Reactivar usuario</TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

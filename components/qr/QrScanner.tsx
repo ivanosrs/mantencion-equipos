@@ -7,15 +7,32 @@ import { Button } from '@/components/ui/button';
 import { Flashlight, FlashlightOff, RefreshCw, TriangleAlert, LoaderCircle, SwitchCamera } from 'lucide-react';
 
 const READER_ID = 'qr-reader';
+// Lado del area de lectura respecto del lado visible del video. El recuadro dibujado
+// usa la misma proporcion para coincidir con la zona donde realmente se lee el QR.
+const SCAN_BOX_RATIO = 0.75;
 
 interface CameraDevice {
   id: string;
   label: string;
 }
 
+// Un id de dispositivo o, si no se pudo identificar, una restriccion de orientacion.
+type CameraTarget = string | MediaTrackConstraints;
+
+const BACK_CAMERA = /back|rear|environment|trasera|posterior/i;
+// Lentes secundarios del telefono: la camara principal enfoca mejor un QR cercano.
+const SECONDARY_LENS = /ultra|wide|angular|tele|macro|dual|triple|depth/i;
+
+// La camara trasera principal; null si las etiquetas no permiten reconocerla.
+function pickBackCamera(cameras: CameraDevice[]): string | null {
+  const back = cameras.filter((c) => BACK_CAMERA.test(c.label));
+  if (back.length === 0) return null;
+  return (back.find((c) => !SECONDARY_LENS.test(c.label)) ?? back[0]).id;
+}
+
 export function QrScanner() {
   const [cameras, setCameras] = useState<CameraDevice[]>([]);
-  const [activeCameraId, setActiveCameraId] = useState<string | null>(null);
+  const [activeCamera, setActiveCamera] = useState<CameraTarget | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [status, setStatus] = useState<'idle' | 'starting' | 'scanning' | 'error'>('idle');
@@ -44,7 +61,7 @@ export function QrScanner() {
     stream?.getTracks().forEach((track) => track.stop());
   }, []);
 
-  const startScan = useCallback(async (cameraId: string) => {
+  const startScan = useCallback(async (camera: CameraTarget) => {
     const runId = ++runIdRef.current;
     cancelledRef.current = false;
     setStatus('starting');
@@ -80,11 +97,11 @@ export function QrScanner() {
       };
 
       await scanner.start(
-        cameraId,
+        camera,
         {
           fps: 10,
           qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-            const size = Math.min(viewfinderWidth, viewfinderHeight) * 0.72;
+            const size = Math.min(viewfinderWidth, viewfinderHeight) * SCAN_BOX_RATIO;
             return { width: size, height: size };
           },
           aspectRatio: undefined,
@@ -121,13 +138,13 @@ export function QrScanner() {
 
   const handleCameraSwitch = useCallback(() => {
     if (cameras.length <= 1) return;
-    const currentIndex = cameras.findIndex((c) => c.id === activeCameraId);
+    const currentIndex = cameras.findIndex((c) => c.id === activeCamera);
     const nextIndex = (currentIndex + 1) % cameras.length;
     const nextId = cameras[nextIndex].id;
-    setActiveCameraId(nextId);
+    setActiveCamera(nextId);
     void stopScan();
     void startScan(nextId);
-  }, [cameras, activeCameraId, stopScan, startScan]);
+  }, [cameras, activeCamera, stopScan, startScan]);
 
   const handleTorchToggle = useCallback(async () => {
     const scanner = scannerRef.current;
@@ -141,10 +158,10 @@ export function QrScanner() {
   }, [torchOn]);
 
   const handleRetry = useCallback(() => {
-    if (activeCameraId) {
-      void startScan(activeCameraId);
+    if (activeCamera) {
+      void startScan(activeCamera);
     }
-  }, [activeCameraId, startScan]);
+  }, [activeCamera, startScan]);
 
   useEffect(() => {
     let mounted = true;
@@ -154,9 +171,9 @@ export function QrScanner() {
         const list = devices.map((d) => ({ id: d.id, label: d.label }));
         setCameras(list);
         if (list.length > 0) {
-          const firstId = list[0].id;
-          setActiveCameraId(firstId);
-          void startScan(firstId);
+          const camera: CameraTarget = pickBackCamera(list) ?? { facingMode: 'environment' };
+          setActiveCamera(camera);
+          void startScan(camera);
         } else {
           setStatus('error');
           setError('No se encontró ninguna cámara en este dispositivo.');
@@ -195,23 +212,23 @@ export function QrScanner() {
 
   return (
     <div className="w-full max-w-md mx-auto space-y-4">
-      <div className="relative" ref={containerRef}>
+      <div className="relative rounded-xl overflow-hidden" ref={containerRef}>
+        {/* El video llena el cuadrado recortando desde el centro; el sombreado de la
+            libreria se oculta porque se dibuja sobre el video sin recortar. */}
         <div
           id={READER_ID}
-          className="w-full aspect-square bg-slate-900 rounded-xl overflow-hidden"
+          className="w-full aspect-square bg-slate-900 [&_video]:h-full! [&_video]:w-full! [&_video]:object-cover [&_#qr-shaded-region]:hidden!"
           style={{ position: 'relative' }}
         />
         {status === 'scanning' && (
-          <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-[72%] aspect-square relative">
-                <div className="absolute -top-2 -left-2 w-4 h-4 border-4 border-slate-50 rounded-tl-xl border-r-transparent border-b-transparent" />
-                <div className="absolute -top-2 -right-2 w-4 h-4 border-4 border-slate-50 rounded-tr-xl border-l-transparent border-b-transparent" />
-                <div className="absolute -bottom-2 -left-2 w-4 h-4 border-4 border-slate-50 rounded-bl-xl border-r-transparent border-t-transparent" />
-                <div className="absolute -bottom-2 -right-2 w-4 h-4 border-4 border-slate-50 rounded-br-xl border-l-transparent border-t-transparent" />
-                <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400/80 animate-[scan_2.4s_ease-in-out_infinite] shadow-[0_0_8px_theme(colors.emerald.400)]" />
-              </div>
-            </div>
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            aria-hidden="true"
+          >
+            <div
+              className="aspect-square border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]"
+              style={{ width: `${SCAN_BOX_RATIO * 100}%` }}
+            />
           </div>
         )}
         {status === 'starting' && (
@@ -244,7 +261,7 @@ export function QrScanner() {
         </Button>
 
         <Button
-          onClick={status === 'scanning' ? stopScan : () => activeCameraId && startScan(activeCameraId)}
+          onClick={status === 'scanning' ? stopScan : () => activeCamera && startScan(activeCamera)}
           variant={status === 'scanning' ? 'destructive' : 'default'}
           size="lg"
           className="min-w-[160px]"
