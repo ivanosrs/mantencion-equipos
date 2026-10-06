@@ -22,6 +22,7 @@ interface UserRow {
   role: UserRole;
   phone: string | null;
   is_active: boolean;
+  is_hidden: boolean;
   created_at: string;
 }
 
@@ -60,6 +61,7 @@ export default function UsersPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [pendingDeactivate, setPendingDeactivate] = useState<UserRow | null>(null);
   const [swiped, setSwiped] = useState<{ id: string; side: SwipeSide } | null>(null);
+  const [includeHidden, setIncludeHidden] = useState(false);
   const isTouchDevice = useIsTouchDevice();
 
   useEffect(() => {
@@ -121,11 +123,22 @@ export default function UsersPage() {
     });
   }
 
-  async function reload() {
-    const res = await fetch('/api/users');
+  async function reload(include = includeHidden) {
+    const res = await fetch(include ? '/api/users?include_hidden=1' : '/api/users');
     if (!res.ok) return;
     const payload = (await res.json()) as { users?: UserRow[] };
     setUsers(payload.users ?? []);
+  }
+
+  async function toggleIncludeHidden() {
+    const next = !includeHidden;
+    setIncludeHidden(next);
+    setLoading(true);
+    try {
+      await reload(next);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -215,6 +228,45 @@ export default function UsersPage() {
     }
   }
 
+  async function setUserHidden(user: UserRow, isHidden: boolean) {
+    setSubmitting(true);
+
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: user.id, is_hidden: isHidden }),
+      });
+
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        toast({
+          title: 'Error',
+          description: data.error ?? 'No se pudo actualizar la visibilidad',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      await reload();
+      toast({
+        title: isHidden ? 'Usuario oculto' : 'Usuario visible',
+        description: isHidden
+          ? `${user.full_name} ya no aparece en el listado, pero puede seguir entrando`
+          : `${user.full_name} vuelve a aparecer en el listado`,
+        variant: 'success',
+      });
+    } catch {
+      toast({
+        title: 'Error',
+        description: 'No se pudo actualizar la visibilidad del usuario',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   if (!authChecked) return <div>Cargando...</div>;
   if (!isAdmin) return <div>Acceso denegado</div>;
 
@@ -226,10 +278,21 @@ export default function UsersPage() {
             <h1 className="text-3xl font-bold">Gestión de Usuarios</h1>
             <p className="text-slate-600 mt-1">Total: {users.length} usuarios</p>
           </div>
-          <Button onClick={showForm ? () => setShowForm(false) : openCreateForm} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Nuevo Usuario
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={toggleIncludeHidden}
+              disabled={loading}
+              variant={includeHidden ? 'secondary' : 'outline'}
+              className="gap-2"
+            >
+              {includeHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              {includeHidden ? 'Ocultando usuarios ocultos' : 'Mostrar usuarios ocultos'}
+            </Button>
+            <Button onClick={showForm ? () => setShowForm(false) : openCreateForm} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Nuevo Usuario
+            </Button>
+          </div>
         </div>
 
         {error && (
@@ -391,6 +454,11 @@ export default function UsersPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="font-semibold text-lg truncate">{user.full_name}</p>
+                          {user.is_hidden && (
+                            <Badge variant="outline" className="text-slate-500">
+                              Oculto
+                            </Badge>
+                          )}
                           {!user.is_active && (
                             <Badge variant="secondary" className="bg-slate-200 text-slate-600">
                               Inactivo
@@ -405,6 +473,33 @@ export default function UsersPage() {
                           </p>
                         )}
                       </div>
+                    );
+
+                    // El swipe solo admite dos acciones (start/end), asi que en touch
+                    // el toggle de visibilidad va como boton dentro de la fila.
+                    const hiddenToggle = (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => setUserHidden(user, !user.is_hidden)}
+                            disabled={submitting}
+                            className="cursor-pointer disabled:opacity-50"
+                            aria-label={user.is_hidden ? 'Mostrar usuario' : 'Ocultar usuario'}
+                          >
+                            {user.is_hidden ? (
+                              <Eye className="w-5 h-5 text-slate-400" />
+                            ) : (
+                              <EyeOff className="w-5 h-5 text-slate-400" />
+                            )}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {user.is_hidden
+                            ? 'Mostrar usuario — vuelve al listado'
+                            : 'Ocultar usuario — sale del listado pero puede seguir entrando'}
+                        </TooltipContent>
+                      </Tooltip>
                     );
 
                     if (isTouchDevice) {
@@ -437,7 +532,10 @@ export default function UsersPage() {
                                 }
                           }
                         >
-                          <div className="flex items-center p-4 bg-slate-50">{info}</div>
+                          <div className="flex items-center gap-3 p-4 bg-slate-50">
+                            {info}
+                            {hiddenToggle}
+                          </div>
                         </SwipeableRow>
                       );
                     }
@@ -463,6 +561,8 @@ export default function UsersPage() {
                             </TooltipTrigger>
                             <TooltipContent>Editar usuario</TooltipContent>
                           </Tooltip>
+
+                          {hiddenToggle}
 
                           {user.is_active ? (
                             <Tooltip>

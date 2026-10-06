@@ -41,15 +41,24 @@ async function requireAdmin(): Promise<AdminGuard> {
   return { ok: true, admin: createAdminClient(), userId: user.id };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.response;
-  const { admin } = guard;
+  const { admin, userId } = guard;
 
-  const { data: profiles, error: profilesError } = await admin
-    .from('profiles')
-    .select('*')
-    .order('created_at', { ascending: false });
+  // Los usuarios ocultos quedan fuera del listado, salvo la fila propia:
+  // asi la pantalla nunca se vacia para un administrador y siempre se puede
+  // volver a mostrar (u ocultar) la propia cuenta desde la UI.
+  const includeHidden = request.nextUrl.searchParams.get('include_hidden') === '1';
+
+  let query = admin.from('profiles').select('*');
+  if (!includeHidden) {
+    query = query.or(`is_hidden.eq.false,id.eq.${userId}`);
+  }
+
+  const { data: profiles, error: profilesError } = await query.order('created_at', {
+    ascending: false,
+  });
 
   if (profilesError) {
     return NextResponse.json({ error: 'Error al cargar los usuarios' }, { status: 500 });
@@ -163,10 +172,22 @@ export async function PUT(request: NextRequest) {
     if (!guard.ok) return guard.response;
     const { admin, userId } = guard;
 
-    const { id, full_name, role, phone, password, is_active } = await request.json();
+    const { id, full_name, role, phone, password, is_active, is_hidden } =
+      await request.json();
 
     if (!id) {
       return NextResponse.json({ error: 'Falta el id del usuario' }, { status: 400 });
+    }
+
+    // Toggle de visibilidad. No tiene guarda de auto-ocultamiento a
+    // diferencia de is_active: el listado siempre incluye la fila propia,
+    // asi que un administrador puede volver a mostrarse sin tocar SQL.
+    if (typeof is_hidden === 'boolean') {
+      const { error } = await admin.from('profiles').update({ is_hidden }).eq('id', id);
+      if (error) {
+        return NextResponse.json({ error: 'Error al cambiar la visibilidad' }, { status: 500 });
+      }
+      return NextResponse.json({ message: 'Visibilidad actualizada' });
     }
 
     // Toggle de estado (reactivar / desactivar).
