@@ -1,3 +1,4 @@
+import { isServiceAdmin } from '@/lib/service-admins';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
@@ -6,7 +7,13 @@ const VALID_ROLES = ['admin', 'technician'] as const;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type AdminGuard =
-  | { ok: true; admin: ReturnType<typeof createAdminClient>; userId: string }
+  | {
+      ok: true;
+      admin: ReturnType<typeof createAdminClient>;
+      userId: string;
+      email: string;
+      canSeeHidden: boolean;
+    }
   | { ok: false; response: NextResponse };
 
 async function requireAdmin(): Promise<AdminGuard> {
@@ -38,18 +45,26 @@ async function requireAdmin(): Promise<AdminGuard> {
     };
   }
 
-  return { ok: true, admin: createAdminClient(), userId: user.id };
+  return {
+    ok: true,
+    admin: createAdminClient(),
+    userId: user.id,
+    email: user.email ?? '',
+    canSeeHidden: isServiceAdmin(user.email),
+  };
 }
 
 export async function GET(request: NextRequest) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.response;
-  const { admin, userId } = guard;
+  const { admin, userId, canSeeHidden } = guard;
 
   // Los usuarios ocultos quedan fuera del listado, salvo la fila propia:
   // asi la pantalla nunca se vacia para un administrador y siempre se puede
   // volver a mostrar (u ocultar) la propia cuenta desde la UI.
-  const includeHidden = request.nextUrl.searchParams.get('include_hidden') === '1';
+  // include_hidden solo se respeta para las cuentas de servicio: un admin
+  // creado despues no puede pedirlas ni escribiendo el parametro a mano.
+  const includeHidden = canSeeHidden && request.nextUrl.searchParams.get('include_hidden') === '1';
 
   let query = admin.from('profiles').select('*');
   if (!includeHidden) {
@@ -91,7 +106,7 @@ export async function GET(request: NextRequest) {
     email: emailsById.get(profile.id) ?? '',
   }));
 
-  return NextResponse.json({ users });
+  return NextResponse.json({ users, canSeeHidden });
 }
 
 export async function POST(request: NextRequest) {
@@ -170,7 +185,7 @@ export async function PUT(request: NextRequest) {
   try {
     const guard = await requireAdmin();
     if (!guard.ok) return guard.response;
-    const { admin, userId } = guard;
+    const { admin, userId, canSeeHidden } = guard;
 
     const { id, full_name, role, phone, password, is_active, is_hidden } =
       await request.json();
@@ -182,7 +197,15 @@ export async function PUT(request: NextRequest) {
     // Toggle de visibilidad. No tiene guarda de auto-ocultamiento a
     // diferencia de is_active: el listado siempre incluye la fila propia,
     // asi que un administrador puede volver a mostrarse sin tocar SQL.
+    // Solo las cuentas de servicio pueden cambiar la visibilidad de otro.
     if (typeof is_hidden === 'boolean') {
+      if (!canSeeHidden) {
+        return NextResponse.json(
+          { error: 'Solo las cuentas de servicio pueden ocultar o mostrar usuarios' },
+          { status: 403 }
+        );
+      }
+
       const { error } = await admin.from('profiles').update({ is_hidden }).eq('id', id);
       if (error) {
         return NextResponse.json({ error: 'Error al cambiar la visibilidad' }, { status: 500 });

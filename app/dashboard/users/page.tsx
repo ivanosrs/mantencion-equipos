@@ -62,6 +62,9 @@ export default function UsersPage() {
   const [pendingDeactivate, setPendingDeactivate] = useState<UserRow | null>(null);
   const [swiped, setSwiped] = useState<{ id: string; side: SwipeSide } | null>(null);
   const [includeHidden, setIncludeHidden] = useState(false);
+  // Solo las cuentas de servicio reciben este permiso del servidor. Un admin
+  // creado despues ve el listado filtrado y no tiene el toggle.
+  const [canSeeHidden, setCanSeeHidden] = useState(false);
   const isTouchDevice = useIsTouchDevice();
 
   useEffect(() => {
@@ -80,9 +83,13 @@ export default function UsersPage() {
         }
 
         if (res.ok) {
-          const payload = (await res.json()) as { users?: UserRow[] };
+          const payload = (await res.json()) as {
+            users?: UserRow[];
+            canSeeHidden?: boolean;
+          };
           setIsAdmin(true);
           setUsers(payload.users ?? []);
+          setCanSeeHidden(payload.canSeeHidden ?? false);
         }
       } catch {
         setError('Error de conexión al cargar los usuarios');
@@ -126,8 +133,12 @@ export default function UsersPage() {
   async function reload(include = includeHidden) {
     const res = await fetch(include ? '/api/users?include_hidden=1' : '/api/users');
     if (!res.ok) return;
-    const payload = (await res.json()) as { users?: UserRow[] };
+    const payload = (await res.json()) as {
+      users?: UserRow[];
+      canSeeHidden?: boolean;
+    };
     setUsers(payload.users ?? []);
+    setCanSeeHidden(payload.canSeeHidden ?? false);
   }
 
   async function toggleIncludeHidden() {
@@ -279,15 +290,17 @@ export default function UsersPage() {
             <p className="text-slate-600 mt-1">Total: {users.length} usuarios</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button
-              onClick={toggleIncludeHidden}
-              disabled={loading}
-              variant={includeHidden ? 'secondary' : 'outline'}
-              className="gap-2"
-            >
-              {includeHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-              {includeHidden ? 'Ocultando usuarios ocultos' : 'Mostrar usuarios ocultos'}
-            </Button>
+            {canSeeHidden && (
+              <Button
+                onClick={toggleIncludeHidden}
+                disabled={loading}
+                variant={includeHidden ? 'secondary' : 'outline'}
+                className="gap-2"
+              >
+                {includeHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                {includeHidden ? 'Ocultando usuarios ocultos' : 'Mostrar usuarios ocultos'}
+              </Button>
+            )}
             <Button onClick={showForm ? () => setShowForm(false) : openCreateForm} className="gap-2">
               <Plus className="w-4 h-4" />
               Nuevo Usuario
@@ -477,7 +490,7 @@ export default function UsersPage() {
 
                     // El swipe solo admite dos acciones (start/end), asi que en touch
                     // el toggle de visibilidad va como boton dentro de la fila.
-                    const hiddenToggle = (
+                    const hiddenToggle = !canSeeHidden ? null : (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
