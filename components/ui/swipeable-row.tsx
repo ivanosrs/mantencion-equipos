@@ -45,11 +45,61 @@ export function SwipeableRow({
   className,
 }: SwipeableRowProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
-  const [dragX, setDragX] = useState<number | null>(null);
+  // Copia sincrona de dragX: en un swipe rapido pointerup puede llegar antes de que
+  // React re-renderice, y el estado leido desde el closure estaria desactualizado.
+  const dragXRef = useRef<number | null>(null);
+  const [dragX, setDragXState] = useState<number | null>(null);
 
   const restX = open === 'start' ? ACTION_WIDTH : open === 'end' ? -ACTION_WIDTH : 0;
   const x = dragX ?? restX;
+
+  function setDragX(value: number | null) {
+    dragXRef.current = value;
+    setDragXState(value);
+  }
+
+  // Safari iOS no respeta de forma confiable `touch-action: pan-y`: si decide que el
+  // gesto es un scroll, lo toma y dispara pointercancel, y la fila vuelve a su lugar.
+  // Un listener nativo no pasivo permite cancelar el scroll cuando el gesto es horizontal.
+  // (El onTouchMove de React es pasivo y no puede llamar a preventDefault.)
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el || disabled) return;
+
+    let start: { x: number; y: number } | null = null;
+
+    function handleTouchStart(e: TouchEvent) {
+      const t = e.touches[0];
+      start = e.touches.length === 1 && t ? { x: t.clientX, y: t.clientY } : null;
+    }
+
+    function handleTouchMove(e: TouchEvent) {
+      const t = e.touches[0];
+      if (!start || !t || !e.cancelable) return;
+      const axis = dragRef.current?.axis;
+      if (axis === 'y') return;
+      const dx = Math.abs(t.clientX - start.x);
+      const dy = Math.abs(t.clientY - start.y);
+      if (axis === 'x' || dx > dy) e.preventDefault();
+    }
+
+    function handleTouchEnd() {
+      start = null;
+    }
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd);
+    el.addEventListener('touchcancel', handleTouchEnd);
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+      el.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [disabled]);
 
   // Tocar fuera de la fila abierta la cierra.
   useEffect(() => {
@@ -87,9 +137,10 @@ export function SwipeableRow({
     dragRef.current = null;
     if (!drag) return;
 
-    if (drag.axis === 'x' && dragX !== null) {
+    const finalX = dragXRef.current;
+    if (drag.axis === 'x' && finalX !== null) {
       const threshold = ACTION_WIDTH / 2;
-      onOpenChange(dragX > threshold ? 'start' : dragX < -threshold ? 'end' : null);
+      onOpenChange(finalX > threshold ? 'start' : finalX < -threshold ? 'end' : null);
     } else if (drag.axis === null && open) {
       // Un toque sobre la fila abierta la cierra.
       onOpenChange(null);
@@ -130,6 +181,7 @@ export function SwipeableRow({
       {x < 0 && renderAction(endAction, 'end')}
 
       <div
+        ref={contentRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

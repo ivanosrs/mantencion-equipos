@@ -207,7 +207,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto min-h-0">
+      {/* Solo scroll vertical: un hijo demasiado ancho no debe volver la pagina
+          desplazable hacia los lados (en iOS eso roba el gesto de swipe de las filas). */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none min-w-0 min-h-0">
         {/* Header */}
         <div className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 py-4 lg:px-6 flex items-center justify-between">
           <button

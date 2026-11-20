@@ -284,12 +284,13 @@ export default function UsersPage() {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Gestión de Usuarios</h1>
+        {/* En mobile el titulo va arriba y los botones abajo, para no salirse del viewport. */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold">Gestión de Usuarios</h1>
             <p className="text-slate-600 mt-1">Total: {users.length} usuarios</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {canSeeHidden && (
               <Button
                 onClick={toggleIncludeHidden}
@@ -297,8 +298,8 @@ export default function UsersPage() {
                 variant={includeHidden ? 'secondary' : 'outline'}
                 className="gap-2"
               >
-                {includeHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                {includeHidden ? 'Ocultando usuarios ocultos' : 'Mostrar usuarios ocultos'}
+                {includeHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {includeHidden ? 'Esconder ocultos' : 'Mostrar ocultos'}
               </Button>
             )}
             <Button onClick={showForm ? () => setShowForm(false) : openCreateForm} className="gap-2">
