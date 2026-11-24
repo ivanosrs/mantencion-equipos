@@ -7,6 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DuplicateSerialAlert } from '@/components/equipments/DuplicateSerialAlert';
+import {
+  type ExistingEquipment,
+  findEquipmentBySerial,
+  isDuplicateSerialError,
+  normalizeSerial,
+} from '@/lib/equipment-serial';
 import { ArrowLeft, Archive } from 'lucide-react';
 
 export default function EditEquipmentPage() {
@@ -20,6 +27,10 @@ export default function EditEquipmentPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState('');
+  const [duplicate, setDuplicate] = useState<{
+    serial: string;
+    existing: ExistingEquipment | null;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     type: '',
@@ -84,19 +95,30 @@ export default function EditEquipmentPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setDuplicate(null);
     setLoading(true);
 
     try {
+      const serial = normalizeSerial(formData.serial_number);
+
+      if (!serial) {
+        setError('El número de serie no puede estar vacío');
+        return;
+      }
+
       const { error: updateError } = await supabase
         .from('equipments')
         .update({
           ...formData,
+          serial_number: serial,
           last_maintenance_date: formData.last_maintenance_date || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id);
 
-      if (updateError) {
+      if (isDuplicateSerialError(updateError)) {
+        setDuplicate({ serial, existing: await findEquipmentBySerial(supabase, serial, id) });
+      } else if (updateError) {
         setError(updateError.message);
       } else {
         router.push(`/dashboard/equipments/${id}`);
@@ -165,6 +187,14 @@ export default function EditEquipmentPage() {
               <div className="bg-red-50 text-red-600 p-4 rounded-lg text-sm">
                 {error}
               </div>
+            )}
+
+            {duplicate && (
+              <DuplicateSerialAlert
+                serial={duplicate.serial}
+                existing={duplicate.existing}
+                onRestored={(restoredId) => router.push(`/dashboard/equipments/${restoredId}`)}
+              />
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
