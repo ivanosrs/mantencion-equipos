@@ -1,4 +1,5 @@
 import type { Equipment, ServiceType, WorkOrder, WorkOrderPart } from '@/lib/types';
+import { formatDateShort } from '@/lib/date';
 
 /**
  * Definicion unica del documento "Orden de Trabajo".
@@ -28,19 +29,6 @@ export const OT_SERVICE_TYPES: { value: ServiceType; label: string }[] = [
 
 export function serviceTypeLabel(value: string): string {
   return OT_SERVICE_TYPES.find((type) => type.value === value)?.label ?? value;
-}
-
-/**
- * `intervention_date` se guarda como 'YYYY-MM-DD'. `new Date(...)` lo
- * interpreta como UTC midnight, y en Chile (UTC-3) `toLocaleDateString`
- * retrocede un dia. Formateamos a mano para evitarlo.
- */
-export function formatDateOnly(value: string): string {
-  const [year, month, day] = value.slice(0, 10).split('-');
-
-  if (!year || !month || !day) return value;
-
-  return `${day}/${month}/${year}`;
 }
 
 export interface OtField {
@@ -138,7 +126,7 @@ export function buildOtDocument(input: {
         title: 'Información de la Orden',
         fields: [
           { label: 'Número OT', value: workOrder.ot_number },
-          { label: 'Fecha de Intervención', value: formatDateOnly(workOrder.intervention_date) },
+          { label: 'Fecha de Intervención', value: formatDateShort(workOrder.intervention_date) },
           { label: 'Tipo de Servicio', value: serviceTypeLabel(workOrder.service_type) },
           { label: 'Descripción del Problema', value: workOrder.problem_description || '' },
         ],

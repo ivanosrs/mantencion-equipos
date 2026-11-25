@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/motion/tabs';
 import { Equipment } from '@/lib/types';
+import { formatDateShort } from '@/lib/date';
 import { Plus, Search, RotateCcw } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -260,7 +261,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-slate-500">Última mantención</p>
                     <p className="text-slate-900">
-                      {new Date(equipment.last_maintenance_date).toLocaleDateString('es-CL')}
+                      {formatDateShort(equipment.last_maintenance_date)}
                     </p>
                   </div>
                 )}

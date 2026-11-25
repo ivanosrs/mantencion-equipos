@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
+import { DateInput } from '@/components/ui/date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -222,11 +223,10 @@ export default function NewEquipmentPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="maintenance">Última Mantención</Label>
-                <Input
+                <DateInput
                   id="maintenance"
-                  type="date"
                   value={formData.last_maintenance_date}
-                  onChange={(e) => setFormData({ ...formData, last_maintenance_date: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, last_maintenance_date: value })}
                 />
               </div>
             </div>

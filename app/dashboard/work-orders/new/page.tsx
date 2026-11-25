@@ -5,12 +5,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
+import { DateInput } from '@/components/ui/date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Equipment, ServiceType } from '@/lib/types';
 import { OT_ACTIONS, OT_SERVICE_TYPES } from '@/lib/ot-document';
+import { formatDateShort, todayISO } from '@/lib/date';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 const SignaturePad = dynamic(() => import('@/components/work-orders/SignaturePad').then(mod => ({ default: mod.SignaturePad })), {
@@ -87,7 +89,7 @@ export default function NewWorkOrderPage() {
 
   const [formData, setFormData] = useState({
     ot_number: '',
-    intervention_date: new Date().toISOString().split('T')[0],
+    intervention_date: todayISO(),
     client_name: '',
     client_address: '',
     client_phone: '',
@@ -304,7 +306,8 @@ export default function NewWorkOrderPage() {
           .upload(`${equipmentId}/${fileName}`, signatureBlob);
 
         if (uploadError) {
-          setError('Error al subir la firma');
+          console.error('Error al subir la firma', uploadError);
+          setError(`Error al subir la firma: ${uploadError.message}`);
           return;
         }
         signaturePath = `${equipmentId}/${fileName}`;
@@ -318,7 +321,8 @@ export default function NewWorkOrderPage() {
           .upload(`${equipmentId}/${fileName}`, attachmentFile);
 
         if (uploadError) {
-          setError('Error al subir el adjunto');
+          console.error('Error al subir el adjunto', uploadError);
+          setError(`Error al subir el adjunto: ${uploadError.message}`);
           return;
         }
         attachmentPath = `${equipmentId}/${fileName}`;
@@ -424,7 +428,7 @@ export default function NewWorkOrderPage() {
             <p className="font-semibold">Período de mantención no cumplido</p>
             <p className="mt-1">
               La última OT de este equipo fue el{' '}
-              {new Date(eligibility.lastInterventionDate!).toLocaleDateString('es-CL')}. Faltan{' '}
+              {formatDateShort(eligibility.lastInterventionDate!)}. Faltan{' '}
               {eligibility.daysRemaining} días para cumplir los {MINIMUM_DAYS_BETWEEN_OT} días
               obligatorios entre mantenciones.
             </p>
@@ -466,10 +470,9 @@ export default function NewWorkOrderPage() {
 
               <div className="space-y-2">
                 <Label>Fecha de Intervención *</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={formData.intervention_date}
-                  onChange={(e) => setFormData({ ...formData, intervention_date: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, intervention_date: value })}
                   required
                 />
               </div>

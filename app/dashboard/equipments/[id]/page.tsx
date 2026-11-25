@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Equipment, WorkOrder, WorkOrderPart } from '@/lib/types';
 import { buildOtDocument, serviceTypeLabel } from '@/lib/ot-document';
 import { downloadWorkOrderPdf } from '@/lib/pdf/work-order';
+import { formatDateShort } from '@/lib/date';
 import { ArrowLeft, Eye, FileDown, FileText, Pencil, Plus } from 'lucide-react';
 
 const QrPrintLabel = dynamic(() => import('@/components/qr/QrPrintLabel').then(mod => ({ default: mod.QrPrintLabel })), {
@@ -213,7 +214,7 @@ export default function EquipmentDetailPage() {
                   <div>
                     <p className="text-sm text-slate-500">Última mantención</p>
                     <p className="font-semibold">
-                      {new Date(equipment.last_maintenance_date).toLocaleDateString('es-CL')}
+                      {formatDateShort(equipment.last_maintenance_date)}
                     </p>
                   </div>
                 )}
@@ -246,7 +247,7 @@ export default function EquipmentDetailPage() {
                         <div>
                           <p className="font-semibold">OT #{wo.ot_number}</p>
                           <p className="text-sm text-slate-600">
-                            {new Date(wo.intervention_date).toLocaleDateString('es-CL')}
+                            {formatDateShort(wo.intervention_date)}
                           </p>
                         </div>
                         <Badge variant="secondary">{serviceTypeLabel(wo.service_type)}</Badge>

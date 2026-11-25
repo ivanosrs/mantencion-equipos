@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PublicEquipment } from '@/lib/types';
+import { formatDateShort } from '@/lib/date';
 
 export default function PublicEquipmentPage() {
   const params = useParams();
@@ -121,11 +122,7 @@ export default function PublicEquipmentPage() {
                 <div>
                   <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">Última Mantención</p>
                   <p className="text-slate-900 text-sm">
-                    {new Date(equipment.last_maintenance_date).toLocaleDateString('es-CL', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
+                    {formatDateShort(equipment.last_maintenance_date)}
                   </p>
                 </div>
               )}
