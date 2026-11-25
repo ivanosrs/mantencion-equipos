@@ -12,6 +12,7 @@ import { Equipment, WorkOrder, WorkOrderPart } from '@/lib/types';
 import { buildOtDocument, serviceTypeLabel } from '@/lib/ot-document';
 import { downloadWorkOrderPdf } from '@/lib/pdf/work-order';
 import { formatDateShort } from '@/lib/date';
+import { getOtFileUrl, type OtFileBucket } from '@/lib/ot-files';
 import { ArrowLeft, Eye, FileDown, FileText, Pencil, Plus } from 'lucide-react';
 
 const QrPrintLabel = dynamic(() => import('@/components/qr/QrPrintLabel').then(mod => ({ default: mod.QrPrintLabel })), {
@@ -94,7 +95,7 @@ export default function EquipmentDetailPage() {
         parts: (partsResult.data as WorkOrderPart[]) ?? [],
       });
 
-      await downloadWorkOrderPdf(supabase, document);
+      await downloadWorkOrderPdf(document);
     } catch (error) {
       console.error('Error al generar el PDF:', error);
       alert('No se pudo generar el PDF de la orden de trabajo');
@@ -103,15 +104,12 @@ export default function EquipmentDetailPage() {
     }
   }
 
-  async function handleDownload(bucket: 'attachments' | 'signatures', path: string) {
-    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 60);
-
-    if (error || !data) {
+  async function handleDownload(bucket: OtFileBucket, path: string) {
+    try {
+      window.open(await getOtFileUrl(bucket, path), '_blank');
+    } catch {
       alert('No se pudo generar el enlace de descarga');
-      return;
     }
-
-    window.open(data.signedUrl, '_blank');
   }
 
   const getStatusColor = (status: string) => {

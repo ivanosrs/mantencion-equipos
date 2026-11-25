@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { WorkOrderDocument } from '@/components/work-orders/WorkOrderDocument';
 import { buildOtDocument, type OtDocument } from '@/lib/ot-document';
+import { getOtFileUrl } from '@/lib/ot-files';
 import { downloadWorkOrderPdf } from '@/lib/pdf/work-order';
 import type { Equipment, WorkOrder, WorkOrderPart } from '@/lib/types';
 import { ArrowLeft } from 'lucide-react';
@@ -83,11 +84,11 @@ export default function WorkOrderDetailPage() {
         );
 
         if (wo.client_signature_path) {
-          const { data: signed } = await supabase.storage
-            .from('signatures')
-            .createSignedUrl(wo.client_signature_path, 300);
+          const signedUrl = await getOtFileUrl('signatures', wo.client_signature_path, 300).catch(
+            () => null
+          );
 
-          setSignatureUrl(signed?.signedUrl ?? null);
+          setSignatureUrl(signedUrl);
         }
       } catch {
         setError('Error al cargar la orden de trabajo');
@@ -105,7 +106,7 @@ export default function WorkOrderDetailPage() {
     setDownloading(true);
 
     try {
-      await downloadWorkOrderPdf(supabase, document);
+      await downloadWorkOrderPdf(document);
     } catch {
       alert('No se pudo generar el PDF de la orden de trabajo');
     } finally {
@@ -116,16 +117,11 @@ export default function WorkOrderDetailPage() {
   async function handleDownloadAttachment() {
     if (!document?.attachmentPath) return;
 
-    const { data, error: signError } = await supabase.storage
-      .from('attachments')
-      .createSignedUrl(document.attachmentPath, 60);
-
-    if (signError || !data) {
+    try {
+      window.open(await getOtFileUrl('attachments', document.attachmentPath), '_blank');
+    } catch {
       alert('No se pudo generar el enlace de descarga');
-      return;
     }
-
-    window.open(data.signedUrl, '_blank');
   }
 
   if (loading) return <div>Cargando...</div>;

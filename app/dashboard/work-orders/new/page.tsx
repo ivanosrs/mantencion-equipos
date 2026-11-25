@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Equipment, ServiceType } from '@/lib/types';
 import { OT_ACTIONS, OT_SERVICE_TYPES } from '@/lib/ot-document';
 import { formatDateShort, todayISO } from '@/lib/date';
+import { uploadOtFile } from '@/lib/ot-files';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 const SignaturePad = dynamic(() => import('@/components/work-orders/SignaturePad').then(mod => ({ default: mod.SignaturePad })), {
@@ -300,32 +301,36 @@ export default function NewWorkOrderPage() {
 
       // Upload signature if exists
       if (signatureBlob) {
-        const fileName = `${Date.now()}-signature.png`;
-        const { error: uploadError } = await supabase.storage
-          .from('signatures')
-          .upload(`${equipmentId}/${fileName}`, signatureBlob);
-
-        if (uploadError) {
+        try {
+          signaturePath = await uploadOtFile(
+            supabase,
+            'signatures',
+            equipmentId,
+            signatureBlob,
+            'signature.png'
+          );
+        } catch (uploadError) {
           console.error('Error al subir la firma', uploadError);
-          setError(`Error al subir la firma: ${uploadError.message}`);
+          setError(`Error al subir la firma: ${(uploadError as Error).message}`);
           return;
         }
-        signaturePath = `${equipmentId}/${fileName}`;
       }
 
       // Upload attachment if exists
       if (attachmentFile) {
-        const fileName = `${Date.now()}-${attachmentFile.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from('attachments')
-          .upload(`${equipmentId}/${fileName}`, attachmentFile);
-
-        if (uploadError) {
+        try {
+          attachmentPath = await uploadOtFile(
+            supabase,
+            'attachments',
+            equipmentId,
+            attachmentFile,
+            attachmentFile.name
+          );
+        } catch (uploadError) {
           console.error('Error al subir el adjunto', uploadError);
-          setError(`Error al subir el adjunto: ${uploadError.message}`);
+          setError(`Error al subir el adjunto: ${(uploadError as Error).message}`);
           return;
         }
-        attachmentPath = `${equipmentId}/${fileName}`;
       }
 
       // Insert work order

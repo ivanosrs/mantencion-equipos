@@ -1,5 +1,5 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 import type { OtDocument, OtField } from '@/lib/ot-document';
+import { getOtFileUrl } from '@/lib/ot-files';
 
 /**
  * PDF de la Orden de Trabajo en formato carta, con encabezado azul marino,
@@ -132,14 +132,14 @@ function loadImage(url: string): Promise<LoadedImage | null> {
   });
 }
 
-async function resolveSignature(supabase: SupabaseClient, path: string | null): Promise<LoadedImage | null> {
+async function resolveSignature(path: string | null): Promise<LoadedImage | null> {
   if (!path) return null;
 
-  const { data } = await supabase.storage.from('signatures').createSignedUrl(path, 60);
+  const signedUrl = await getOtFileUrl('signatures', path).catch(() => null);
 
-  if (!data?.signedUrl) return null;
+  if (!signedUrl) return null;
 
-  return loadImage(data.signedUrl);
+  return loadImage(signedUrl);
 }
 
 function drawHeader(doc: Doc, ot: OtDocument, logo: LoadedImage | null) {
@@ -193,7 +193,7 @@ function drawFooters(doc: Doc, ot: OtDocument) {
   }
 }
 
-export async function buildWorkOrderPdf(supabase: SupabaseClient, ot: OtDocument): Promise<Doc> {
+export async function buildWorkOrderPdf(ot: OtDocument): Promise<Doc> {
   const { jsPDF, autoTable } = await loadPdfDeps();
   const doc = new jsPDF({ format: 'letter' });
   // Interlineado del diseño (1.45): a 10pt equivale a LINE en mm.
@@ -216,7 +216,7 @@ export async function buildWorkOrderPdf(supabase: SupabaseClient, ot: OtDocument
 
   const [logo, signature] = await Promise.all([
     loadImage('/logo-v2.png'),
-    resolveSignature(supabase, conformity?.kind === 'conformity' ? conformity.signaturePath : null),
+    resolveSignature(conformity?.kind === 'conformity' ? conformity.signaturePath : null),
   ]);
 
   const ensureSpace = (y: number, needed: number) => {
@@ -400,8 +400,8 @@ export async function buildWorkOrderPdf(supabase: SupabaseClient, ot: OtDocument
   return doc;
 }
 
-export async function downloadWorkOrderPdf(supabase: SupabaseClient, ot: OtDocument): Promise<void> {
-  const doc = await buildWorkOrderPdf(supabase, ot);
+export async function downloadWorkOrderPdf(ot: OtDocument): Promise<void> {
+  const doc = await buildWorkOrderPdf(ot);
 
   doc.save(`OT-${ot.otNumber}.pdf`);
 }
