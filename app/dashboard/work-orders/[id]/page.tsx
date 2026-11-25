@@ -21,6 +21,9 @@ export default function WorkOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [equipmentId, setEquipmentId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -48,14 +51,18 @@ export default function WorkOrderDetailPage() {
 
         const wo = workOrder as WorkOrder;
 
-        const [{ data: equipmentData }, { data: partsData }] = await Promise.all([
+        const [{ data: equipmentData }, { data: partsData }, { data: profile }] = await Promise.all([
           supabase.from('equipments').select('*').eq('id', wo.equipment_id).single(),
           supabase
             .from('work_order_parts')
             .select('*')
             .eq('work_order_id', wo.id)
             .order('id'),
+          supabase.from('profiles').select('role').eq('id', user.id).single(),
         ]);
+
+        setEquipmentId(wo.equipment_id);
+        setIsAdmin(profile?.role === 'admin');
 
         if (!equipmentData) {
           setError('Equipo de la orden de trabajo no encontrado');
@@ -124,6 +131,35 @@ export default function WorkOrderDetailPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!document) return;
+
+    if (
+      !confirm(
+        `¿Eliminar la OT N° ${document.otNumber}? Se borrarán también sus repuestos, la firma y el adjunto. Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+
+    setDeleting(true);
+
+    try {
+      const response = await fetch(`/api/work-orders/${id}`, { method: 'DELETE' });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error ?? `Error ${response.status}`);
+      }
+
+      // replace: volver atras no debe llevar a la OT eliminada.
+      router.replace(`/dashboard/equipments/${data.equipmentId ?? equipmentId}`);
+    } catch (deleteError) {
+      alert(`No se pudo eliminar la OT: ${(deleteError as Error).message}`);
+      setDeleting(false);
+    }
+  }
+
   if (loading) return <div>Cargando...</div>;
 
   if (error || !document) {
@@ -155,6 +191,8 @@ export default function WorkOrderDetailPage() {
         onDownloadPdf={handleDownloadPdf}
         onDownloadAttachment={handleDownloadAttachment}
         downloading={downloading}
+        onDelete={isAdmin ? handleDelete : undefined}
+        deleting={deleting}
       />
     </div>
   );

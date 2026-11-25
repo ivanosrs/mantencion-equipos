@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import type { OtDocument, OtField } from '@/lib/ot-document';
-import { FileDown, FileText } from 'lucide-react';
+import { FileDown, FileText, Trash2 } from 'lucide-react';
 
 const EMPTY_VALUE = '—';
 
@@ -14,6 +14,9 @@ interface WorkOrderDocumentProps {
   onDownloadPdf: () => void;
   onDownloadAttachment: () => void;
   downloading: boolean;
+  /** Solo se pasa para administradores */
+  onDelete?: () => void;
+  deleting?: boolean;
 }
 
 function FieldList({ fields }: { fields: OtField[] }) {
@@ -40,6 +43,8 @@ export function WorkOrderDocument({
   onDownloadPdf,
   onDownloadAttachment,
   downloading,
+  onDelete,
+  deleting = false,
 }: WorkOrderDocumentProps) {
   return (
     <div className="space-y-6">
@@ -169,16 +174,27 @@ export function WorkOrderDocument({
         );
       })}
 
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
         <button
           type="button"
           onClick={onDownloadPdf}
-          disabled={downloading}
-          className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-slate-50 disabled:opacity-50 cursor-pointer"
+          disabled={downloading || deleting}
+          className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-slate-50 disabled:opacity-50 cursor-pointer"
         >
           <FileText className="w-4 h-4" />
           {downloading ? 'Generando...' : 'Descargar PDF'}
         </button>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4" />
+            {deleting ? 'Eliminando...' : 'Eliminar OT'}
+          </button>
+        )}
       </div>
     </div>
   );
